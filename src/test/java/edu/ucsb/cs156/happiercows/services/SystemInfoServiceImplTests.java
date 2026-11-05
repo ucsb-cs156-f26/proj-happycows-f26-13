@@ -8,6 +8,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.test.context.FilteredClassLoader;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.env.StandardEnvironment;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
@@ -33,6 +37,23 @@ class SystemInfoServiceImplTests  {
     assertTrue(si.getGithubUrl().startsWith(si.getSourceRepo()));
     assertTrue(si.getGithubUrl().endsWith(si.getCommitId()));
     assertTrue(si.getGithubUrl().contains("/commit/"));
+  }
+
+  @Test
+  void starts_without_git_properties_and_uses_unknown_commit() {
+    new ApplicationContextRunner()
+        .withClassLoader(new FilteredClassLoader(new ClassPathResource("git.properties")))
+        // Maven also exposes generated Git properties to the test JVM.
+        .withInitializer(context -> context.getEnvironment().getPropertySources()
+            .remove(StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME))
+        .withUserConfiguration(SystemInfoServiceImpl.class)
+        .withPropertyValues("app.sourceRepo=https://github.com/ucsb-cs156/proj-happycows")
+        .run(context -> {
+          assertNull(context.getStartupFailure());
+          SystemInfo si = context.getBean(SystemInfoService.class).getSystemInfo();
+          assertEquals("unknown", si.getCommitId());
+          assertEquals("unknown", si.getCommitMessage());
+        });
   }
 
   @Test
