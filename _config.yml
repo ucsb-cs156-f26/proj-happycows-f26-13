@@ -23,4 +23,4 @@ repo_name: "TBD"
 repo: ucsb-cs156-f26/proj-happycows-f26-13
 owner: ucsb-cs156-f26
 repo_name: proj-happycows-f26-13
-pull_requests: []
+pull_requests: [{"author":{"id":"U_kgDOBlkxBw","is_bot":false,"login":"brucegorman","name":"Bruce Gorman"},"headRefName":"kc-build-without-git","number":12,"title":"kc - allow Docker builds without Git metadata","url":"https://github.com/ucsb-cs156-f26/proj-happycows-f26-13/pull/12"}]
