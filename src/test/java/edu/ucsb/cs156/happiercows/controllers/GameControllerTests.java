@@ -104,6 +104,8 @@ public class GameControllerTests extends ControllerTestCase {
 
         assertEquals(expectedDefaults.get("id"), actualDefaults.get("id"));
         assertEquals(expectedDefaults.get("cowPrice"), actualDefaults.get("cowPrice"));
+        assertEquals(0.0, actualDefaults.get("purchaseFee"));
+        assertEquals(0.0, actualDefaults.get("sellingFee"));
         assertEquals(expectedDefaults.get("milkPrice"), actualDefaults.get("milkPrice"));
         assertEquals(expectedDefaults.get("startingBalance"), actualDefaults.get("startingBalance"));
         assertEquals(expectedDefaults.get("degradationRate"), actualDefaults.get("degradationRate"));
@@ -124,6 +126,8 @@ public class GameControllerTests extends ControllerTestCase {
         Game game = Game.builder()
                 .name("Jackson's Game")
                 .cowPrice(500.99)
+                .purchaseFee(1.25)
+                .sellingFee(2.50)
                 .milkPrice(8.99)
                 .startingBalance(1020.10)
                 .startingDate(someTime)
@@ -141,6 +145,8 @@ public class GameControllerTests extends ControllerTestCase {
         CreateGameParams parameters = CreateGameParams.builder()
                 .name("Jackson's Game")
                 .cowPrice(500.99)
+                .purchaseFee(1.25)
+                .sellingFee(2.50)
                 .milkPrice(8.99)
                 .startingBalance(1020.10)
                 .startingDate(someTime)
@@ -184,6 +190,8 @@ public class GameControllerTests extends ControllerTestCase {
         Game game = Game.builder()
                 .name("Jackson's Game")
                 .cowPrice(500.99)
+                .purchaseFee(1.50)
+                .sellingFee(2.50)
                 .milkPrice(8.99)
                 .startingBalance(1020.10)
                 .startingDate(someTime)
@@ -202,6 +210,8 @@ public class GameControllerTests extends ControllerTestCase {
         CreateGameParams parameters = CreateGameParams.builder()
                 .name("Jackson's Game")
                 .cowPrice(500.99)
+                .purchaseFee(1.50)
+                .sellingFee(2.50)
                 .milkPrice(8.99)
                 .startingBalance(1020.10)
                 .startingDate(someTime)

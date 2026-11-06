@@ -62,6 +62,8 @@ describe("AdminEditGamePage tests", () => {
         lastDate: "2023-03-05",
         startingBalance: 1200,
         cowPrice: 15,
+        purchaseFee: 1,
+        sellingFee: 2,
         milkPrice: 10,
         degradationRate: 20.3,
         capacityPerUser: 10,
@@ -79,6 +81,8 @@ describe("AdminEditGamePage tests", () => {
         lastDate: "2023-03-07",
         startingBalance: 1400,
         cowPrice: 200,
+        purchaseFee: 3,
+        sellingFee: 4,
         milkPrice: 5,
         degradationRate: 40.3,
         capacityPerUser: 20,
@@ -116,6 +120,8 @@ describe("AdminEditGamePage tests", () => {
       const nameField = screen.getByLabelText(/Game Name/);
       const startingBalanceField = screen.getByLabelText(/Starting Balance/);
       const cowPriceField = screen.getByLabelText(/Cow Price/);
+      const purchaseFeeField = screen.getByLabelText(/Purchase Fee/);
+      const sellingFeeField = screen.getByLabelText(/Selling Fee/);
       const milkPriceField = screen.getByLabelText(/Milk Price/);
       const startingDateField = screen.getByLabelText(/Starting Date/);
       const lastDateField = screen.getByLabelText(/Last Date/);
@@ -134,6 +140,8 @@ describe("AdminEditGamePage tests", () => {
       expect(lastDateField).toHaveValue("2023-03-05");
       expect(startingBalanceField).toHaveValue(1200);
       expect(cowPriceField).toHaveValue(15);
+      expect(purchaseFeeField).toHaveValue(1);
+      expect(sellingFeeField).toHaveValue(2);
       expect(milkPriceField).toHaveValue(10);
       expect(degradationRateField).toHaveValue(20.3);
       expect(capacityPerUserField).toHaveValue(10);
@@ -158,6 +166,8 @@ describe("AdminEditGamePage tests", () => {
       const nameField = screen.getByLabelText(/Game Name/);
       const startingBalanceField = screen.getByLabelText(/Starting Balance/);
       const cowPriceField = screen.getByLabelText(/Cow Price/);
+      const purchaseFeeField = screen.getByLabelText(/Purchase Fee/);
+      const sellingFeeField = screen.getByLabelText(/Selling Fee/);
       const milkPriceField = screen.getByLabelText(/Milk Price/);
       const startingDateField = screen.getByLabelText(/Starting Date/);
       const lastDateField = screen.getByLabelText(/Last Date/);
@@ -176,6 +186,8 @@ describe("AdminEditGamePage tests", () => {
       expect(lastDateField).toHaveValue("2023-03-05");
       expect(startingBalanceField).toHaveValue(1200);
       expect(cowPriceField).toHaveValue(15);
+      expect(purchaseFeeField).toHaveValue(1);
+      expect(sellingFeeField).toHaveValue(2);
       expect(milkPriceField).toHaveValue(10);
       expect(degradationRateField).toHaveValue(20.3);
       expect(capacityPerUserField).toHaveValue(10);
@@ -194,6 +206,8 @@ describe("AdminEditGamePage tests", () => {
       fireEvent.change(lastDateField, { target: { value: "2023-03-07" } });
       fireEvent.change(startingBalanceField, { target: { value: 1400 } });
       fireEvent.change(cowPriceField, { target: { value: 200 } });
+      fireEvent.change(purchaseFeeField, { target: { value: 3 } });
+      fireEvent.change(sellingFeeField, { target: { value: 4 } });
       fireEvent.change(milkPriceField, { target: { value: 5 } });
       fireEvent.change(degradationRateField, { target: { value: 40.3 } });
       fireEvent.change(capacityPerUserField, { target: { value: 20 } });
@@ -224,6 +238,8 @@ describe("AdminEditGamePage tests", () => {
           name: "Phill's Game",
           startingBalance: 1400,
           cowPrice: 200,
+          purchaseFee: 3,
+          sellingFee: 4,
           milkPrice: 5,
           startingDate: "2022-03-07T00:00:00.000Z",
           lastDate: "2023-03-07T00:00:00.000Z",

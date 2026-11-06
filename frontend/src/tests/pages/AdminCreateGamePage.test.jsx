@@ -96,6 +96,8 @@ describe("AdminCreateGamePage tests", () => {
     const gameNameField = screen.getByLabelText("Game Name");
     const startingBalanceField = screen.getByLabelText("Starting Balance");
     const cowPriceField = screen.getByLabelText("Cow Price");
+    const purchaseFeeField = screen.getByLabelText("Purchase Fee");
+    const sellingFeeField = screen.getByLabelText("Selling Fee");
     const milkPriceField = screen.getByLabelText("Milk Price");
     const startDateField = screen.getByLabelText("Starting Date");
     const lastDateField = screen.getByLabelText("Last Date");
@@ -113,6 +115,8 @@ describe("AdminCreateGamePage tests", () => {
     fireEvent.change(gameNameField, { target: { value: "My New Game" } });
     fireEvent.change(startingBalanceField, { target: { value: "500" } });
     fireEvent.change(cowPriceField, { target: { value: "10" } });
+    fireEvent.change(purchaseFeeField, { target: { value: "1.5" } });
+    fireEvent.change(sellingFeeField, { target: { value: "2" } });
     fireEvent.change(milkPriceField, { target: { value: "5" } });
     fireEvent.change(startDateField, { target: { value: "2022-03-05" } });
     fireEvent.change(lastDateField, { target: { value: "2023-03-05" } });
@@ -139,6 +143,8 @@ describe("AdminCreateGamePage tests", () => {
       hidden: false,
       startingBalance: 500,
       cowPrice: 10,
+      purchaseFee: 1.5,
+      sellingFee: 2,
       milkPrice: 5,
       degradationRate: 30.4,
       carryingCapacity: 25,
