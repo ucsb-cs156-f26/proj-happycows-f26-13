@@ -256,6 +256,8 @@ public class GameControllerTests extends ControllerTestCase {
         Game game = Game.builder()
                 .name("Jackson's Game")
                 .cowPrice(500.99)
+                .purchaseFee(1.25)
+                .sellingFee(2.50)
                 .milkPrice(8.99)
                 .startingBalance(1020.10)
                 .startingDate(someTime)
@@ -271,6 +273,8 @@ public class GameControllerTests extends ControllerTestCase {
         CreateGameParams parameters = CreateGameParams.builder()
                 .name("Jackson's Game")
                 .cowPrice(500.99)
+                .purchaseFee(1.25)
+                .sellingFee(2.50)
                 .milkPrice(8.99)
                 .startingBalance(1020.10)
                 .startingDate(someTime)
@@ -437,6 +441,8 @@ public class GameControllerTests extends ControllerTestCase {
         CreateGameParams parameters = CreateGameParams.builder()
                 .name("Jackson's Game")
                 .cowPrice(500.99)
+                .purchaseFee(1.25)
+                .sellingFee(2.50)
                 .milkPrice(8.99)
                 .startingBalance(1020.10)
                 .startingDate(someTime)
@@ -455,6 +461,8 @@ public class GameControllerTests extends ControllerTestCase {
                 .id(0L)
                 .name("Jackson's Game")
                 .cowPrice(500.99)
+                .purchaseFee(0)
+                .sellingFee(0)
                 .milkPrice(8.99)
                 .startingBalance(1020.10)
                 .startingDate(someTime)
@@ -480,6 +488,8 @@ public class GameControllerTests extends ControllerTestCase {
         ArgumentCaptor<Game> captor = ArgumentCaptor.forClass(Game.class);
         verify(gameRepository, times(1)).save(captor.capture());
         assertEquals(5L, captor.getValue().getCourseId());
+        assertEquals(1.25, captor.getValue().getPurchaseFee());
+        assertEquals(2.50, captor.getValue().getSellingFee());
     }
 
     @WithMockUser(roles = {"ADMIN"})
@@ -2002,6 +2012,62 @@ public class GameControllerTests extends ControllerTestCase {
                 .showChat(false)
                 .capacityPerUser(10)
                 .carryingCapacity(100);
+    }
+
+    @WithMockUser(roles = {"ADMIN"})
+    @Test
+    public void createGameTest_rejectsNegativeTransactionFees() throws Exception {
+        List<CreateGameParams> invalidGames = List.of(
+                validParamsBuilder().purchaseFee(-0.01).build(),
+                validParamsBuilder().sellingFee(-0.01).build());
+        List<String> expectedMessages = List.of(
+                "Purchase Fee cannot be negative",
+                "Selling Fee cannot be negative");
+
+        for (int i = 0; i < invalidGames.size(); i++) {
+            String requestBody = objectMapper.writeValueAsString(invalidGames.get(i));
+
+            MvcResult response = mockMvc.perform(post("/api/game/new").with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .characterEncoding("utf-8")
+                            .content(requestBody))
+                    .andExpect(status().isBadRequest())
+                    .andReturn();
+
+            assertInstanceOf(IllegalArgumentException.class, response.getResolvedException());
+            assertEquals(expectedMessages.get(i), response.getResolvedException().getMessage());
+        }
+
+        verify(gameRepository, times(0)).save(any());
+    }
+
+    @WithMockUser(roles = {"ADMIN"})
+    @Test
+    public void updateGameTest_rejectsNegativeTransactionFees() throws Exception {
+        List<CreateGameParams> invalidGames = List.of(
+                validParamsBuilder().purchaseFee(-0.01).build(),
+                validParamsBuilder().sellingFee(-0.01).build());
+        List<String> expectedMessages = List.of(
+                "Purchase Fee cannot be negative",
+                "Selling Fee cannot be negative");
+
+        when(gameRepository.findById(0L)).thenReturn(Optional.empty());
+
+        for (int i = 0; i < invalidGames.size(); i++) {
+            String requestBody = objectMapper.writeValueAsString(invalidGames.get(i));
+
+            MvcResult response = mockMvc.perform(put("/api/game/update?id=0").with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .characterEncoding("utf-8")
+                            .content(requestBody))
+                    .andExpect(status().isBadRequest())
+                    .andReturn();
+
+            assertInstanceOf(IllegalArgumentException.class, response.getResolvedException());
+            assertEquals(expectedMessages.get(i), response.getResolvedException().getMessage());
+        }
+
+        verify(gameRepository, times(0)).save(any());
     }
 
     @WithMockUser(roles = {"ADMIN"})

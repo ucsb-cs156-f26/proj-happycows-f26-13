@@ -27,13 +27,13 @@ Default.parameters = {
         status: 200,
       });
     }),
-    http.get("/api/course/:id", () => {
-      return HttpResponse.json(coursesFixtures.threeCourses[0], {
+    http.get("/api/course/schools", () => {
+      return HttpResponse.json(schoolsFixtures.activeSchools, {
         status: 200,
       });
     }),
-    http.get("/api/course/schools", () => {
-      return HttpResponse.json(schoolsFixtures.activeSchools, {
+    http.get("/api/course/:id", () => {
+      return HttpResponse.json(coursesFixtures.threeCourses[0], {
         status: 200,
       });
     }),
