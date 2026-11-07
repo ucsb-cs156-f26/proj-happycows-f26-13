@@ -103,6 +103,7 @@ describe("AdminCoursesEditPage tests", () => {
       expect(
         screen.getByTestId("CoursesForm-school-OTHER"),
       ).toBeInTheDocument();
+      expect(screen.getByLabelText("School")).toHaveValue("OTHER");
     });
 
     test("Changes when you click Update", async () => {
