@@ -247,27 +247,37 @@ function GameForm({ initialGame, submitAction, buttonLabel = "Create" }) {
         </Col>
         <Col md={6}>
           <Form.Group className="mb-3">
-            <Form.Label htmlFor="purchaseFee">Purchase Fee</Form.Label>
-            <Form.Control
-              data-testid={`${testid}-purchaseFee`}
-              id="purchaseFee"
-              type="number"
-              step="0.01"
-              defaultValue={DefaultVals.purchaseFee}
-              isInvalid={!!errors.purchaseFee}
-              {...register("purchaseFee", {
-                valueAsNumber: true,
-                required: "Purchase fee is required",
-                min: {
-                  value: 0,
-                  message: "Purchase fee must be ≥ 0.00",
-                },
-              })}
-            />
+            <Form.Label htmlFor="milkPrice">Milk Price</Form.Label>
+            <OverlayTrigger
+              placement="top"
+              overlay={
+                <Tooltip>
+                  This is the amount of money the farmer earns in profits for
+                  each cow every time it is milked if it is at 100% health. When
+                  a cow is at health less than 100%, the amount earned is
+                  multiplied by that percentage (e.g. 75% of the milk price if
+                  the health is at 75%).
+                </Tooltip>
+              }
+              delay="100"
+            >
+              <Form.Control
+                data-testid={`${testid}-milkPrice`}
+                id="milkPrice"
+                type="number"
+                step="0.01"
+                defaultValue={DefaultVals.milkPrice}
+                isInvalid={!!errors.milkPrice}
+                {...register("milkPrice", {
+                  valueAsNumber: true,
+                  required: "Milk price is required",
+                  min: { value: 0.01, message: "Milk price must be ≥ 0.01" },
+                })}
+              />
+            </OverlayTrigger>
             <Form.Control.Feedback type="invalid">
-              {errors.purchaseFee?.message}
+              {errors.milkPrice?.message}
             </Form.Control.Feedback>
-            <Form.Text>Charged for each cow purchased.</Form.Text>
           </Form.Group>
         </Col>
       </Row>
@@ -299,41 +309,29 @@ function GameForm({ initialGame, submitAction, buttonLabel = "Create" }) {
             <Form.Control.Feedback type="invalid">
               {errors.sellingFee?.message}
             </Form.Control.Feedback>
-            <Form.Text>Deducted for each cow sold.</Form.Text>
           </Form.Group>
         </Col>
         <Col md={6}>
           <Form.Group className="mb-3">
-            <Form.Label htmlFor="milkPrice">Milk Price</Form.Label>
-            <OverlayTrigger
-              placement="top"
-              overlay={
-                <Tooltip>
-                  This is the amount of money the farmer earns in profits for
-                  each cow every time it is milked if it is at 100% health. When
-                  a cow is at health less than 100%, the amount earned is
-                  multiplied by that percentage (e.g. 75% of the milk price if
-                  the health is at 75%).
-                </Tooltip>
-              }
-              delay="100"
-            >
-              <Form.Control
-                data-testid={`${testid}-milkPrice`}
-                id="milkPrice"
-                type="number"
-                step="0.01"
-                defaultValue={DefaultVals.milkPrice}
-                isInvalid={!!errors.milkPrice}
-                {...register("milkPrice", {
-                  valueAsNumber: true,
-                  required: "Milk price is required",
-                  min: { value: 0.01, message: "Milk price must be ≥ 0.01" },
-                })}
-              />
-            </OverlayTrigger>
+            <Form.Label htmlFor="purchaseFee">Purchase Fee</Form.Label>
+            <Form.Control
+              data-testid={`${testid}-purchaseFee`}
+              id="purchaseFee"
+              type="number"
+              step="0.01"
+              defaultValue={DefaultVals.purchaseFee}
+              isInvalid={!!errors.purchaseFee}
+              {...register("purchaseFee", {
+                valueAsNumber: true,
+                required: "Purchase fee is required",
+                min: {
+                  value: 0,
+                  message: "Purchase fee must be ≥ 0.00",
+                },
+              })}
+            />
             <Form.Control.Feedback type="invalid">
-              {errors.milkPrice?.message}
+              {errors.purchaseFee?.message}
             </Form.Control.Feedback>
           </Form.Group>
         </Col>
