@@ -157,9 +157,7 @@ describe("AdminCreateGamePage tests", () => {
       courseId: null,
     };
 
-    expect(axiosMock.history.post[0].data).toEqual(
-      JSON.stringify(expectedGame),
-    );
+    expect(JSON.parse(axiosMock.history.post[0].data)).toEqual(expectedGame);
 
     expect(mockToast).toBeCalledWith(
       <div>
