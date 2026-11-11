@@ -1048,6 +1048,31 @@ public class GameControllerTests extends ControllerTestCase {
 
     @WithMockUser(roles = {"USER"})
     @Test
+    public void join_denied_when_game_is_hidden() throws Exception {
+
+        Game c = Game.builder()
+                .id(2L)
+                .name("Hidden Game")
+                .hidden(true)
+                .build();
+
+        when(gameRepository.findById(eq(2L))).thenReturn(Optional.of(c));
+
+        MvcResult response = mockMvc
+                .perform(post("/api/game/join?gameId=2").with(csrf()))
+                .andExpect(status().isBadRequest()).andReturn();
+
+        verify(gameRepository, times(1)).findById(eq(2L));
+        verify(farmerRepository, times(0)).findByGameIdAndUserId(anyLong(), anyLong());
+        verify(farmerRepository, times(0)).save(any());
+
+        Map<String, Object> responseMap = responseToJson(response);
+        assertEquals("GameHiddenException", responseMap.get("type"));
+        assertEquals("Game with id 2 is hidden", responseMap.get("message"));
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
     public void join_denied_when_user_not_eligible_for_course_linked_game() throws Exception {
 
         User currentUser = currentUserService.getUser();

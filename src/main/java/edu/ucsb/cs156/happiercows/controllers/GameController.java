@@ -12,6 +12,7 @@ import edu.ucsb.cs156.happiercows.models.CreateGameParams;
 import edu.ucsb.cs156.happiercows.models.DashboardSettingsParams;
 import edu.ucsb.cs156.happiercows.models.HealthUpdateStrategyList;
 import edu.ucsb.cs156.happiercows.errors.CourseAccessDeniedException;
+import edu.ucsb.cs156.happiercows.errors.GameHiddenException;
 import edu.ucsb.cs156.happiercows.repositories.GameStatsRepository;
 import edu.ucsb.cs156.happiercows.repositories.GameRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
@@ -343,6 +344,10 @@ public class GameController extends ApiController {
 
         Game joinedGame = gameRepository.findById(gameId)
                 .orElseThrow(() -> new EntityNotFoundException("Game", gameId));
+
+        if (joinedGame.isHidden()) {
+            throw new GameHiddenException(gameId);
+        }
 
         if (joinedGame.getCourseId() != null && !courseAccessService.isEligibleForGame(u, joinedGame)) {
             throw new CourseAccessDeniedException(gameId);
