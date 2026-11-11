@@ -6,6 +6,8 @@ import { http, HttpResponse } from "msw";
 import AdminCoursesEditPage from "main/pages/AdminCoursesEditPage";
 import { coursesFixtures } from "fixtures/coursesFixtures";
 
+import { schoolsFixtures } from "fixtures/schoolsFixtures";
+
 export default {
   title: "pages/AdminCoursesEditPage",
   component: AdminCoursesEditPage,
@@ -23,6 +25,11 @@ Default.parameters = {
     }),
     http.get("/api/systemInfo", () => {
       return HttpResponse.json(systemInfoFixtures.showingNeither, {
+        status: 200,
+      });
+    }),
+    http.get("/api/course/schools", () => {
+      return HttpResponse.json(schoolsFixtures.activeSchools, {
         status: 200,
       });
     }),
