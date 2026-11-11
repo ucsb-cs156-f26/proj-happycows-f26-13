@@ -24,6 +24,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
@@ -145,5 +146,48 @@ public class UsersControllerTests extends ControllerTestCase {
     when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
     mockMvc.perform(post("/api/admin/users/restore").param("userId", "1").with(csrf())).andExpect(status().isNotFound());
+  }
+
+  @WithMockUser(roles = {"USER"})
+  @Test
+  public void regular_user_cannot_set_chat_cooldown() throws Exception {
+    mockMvc.perform(post("/api/admin/users/chatCooldown").param("userId", "1").param("seconds", "60").with(csrf()))
+        .andExpect(status().isForbidden());
+  }
+
+  @WithMockUser(roles = {"ADMIN"})
+  @Test
+  public void admin_can_set_chat_cooldown() throws Exception {
+    User user = User.builder().id(1L).build();
+    when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+    Instant before = Instant.now();
+    MvcResult response = mockMvc.perform(post("/api/admin/users/chatCooldown").param("userId", "1").param("seconds", "60").with(csrf()))
+        .andExpect(status().isOk()).andReturn();
+    Instant after = Instant.now();
+
+    verify(userRepository, times(1)).save(user);
+    Instant until = user.getChatCooldownUntil();
+    assertEquals(true, !until.isBefore(before.plusSeconds(60)) && !until.isAfter(after.plusSeconds(60)));
+    assertEquals("User with id 1 on chat cooldown for 60 seconds", responseToJson(response).get("message"));
+  }
+
+  @WithMockUser(roles = {"ADMIN"})
+  @Test
+  public void admin_chat_cooldown_rejects_negative_seconds() throws Exception {
+    MvcResult response = mockMvc.perform(post("/api/admin/users/chatCooldown").param("userId", "1").param("seconds", "-1").with(csrf()))
+        .andExpect(status().isBadRequest()).andReturn();
+
+    verify(userRepository, times(0)).save(any(User.class));
+    assertEquals("seconds must be >= 0", responseToJson(response).get("message"));
+  }
+
+  @WithMockUser(roles = {"ADMIN"})
+  @Test
+  public void admin_chat_cooldown_nonexistent_user() throws Exception {
+    when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+    mockMvc.perform(post("/api/admin/users/chatCooldown").param("userId", "1").param("seconds", "60").with(csrf()))
+        .andExpect(status().isNotFound());
   }
 }
