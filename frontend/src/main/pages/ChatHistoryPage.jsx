@@ -1,12 +1,14 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Spinner } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router";
 import { useInfiniteQuery } from "react-query";
 import axios from "axios";
+import { toast } from "react-toastify";
 
 import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
 import ChatMessageDisplay from "main/components/Chat/ChatMessageDisplay";
 import ChatMessageCreate from "main/components/Chat/ChatMessageCreate";
+import ChatCooldownModal from "main/components/Chat/ChatCooldownModal";
 import { useBackendMutation } from "main/utils/useBackend";
 import { useBackend } from "main/utils/useBackend";
 
@@ -51,6 +53,17 @@ const ChatHistoryPage = ({ readOnly = false, isAdmin = false }) => {
       },
     },
     [`/api/chat/admin/get?gameId=${gameId}`], // IMPORTANT
+  );
+
+  const [cooldownTarget, setCooldownTarget] = useState(null);
+
+  const cooldownMutation = useBackendMutation(
+    ({ userId, seconds }) => ({
+      url: "/api/admin/users/chatCooldown",
+      method: "POST",
+      params: { userId, seconds },
+    }),
+    { onSuccess: (data) => toast.success(data.message) },
   );
 
   const handleDelete = (id) => {
@@ -223,6 +236,21 @@ const ChatHistoryPage = ({ readOnly = false, isAdmin = false }) => {
                 )}
               </div>
 
+              {isAdmin && (
+                <button
+                  className="btn btn-warning btn-sm ms-2"
+                  data-testid={`ChatHistoryPage-cooldown-${message.id}`}
+                  onClick={() =>
+                    setCooldownTarget({
+                      userId: message.userId,
+                      username: message.username,
+                    })
+                  }
+                >
+                  Cooldown
+                </button>
+              )}
+
               {isAdmin && !message.hidden && (
                 <button
                   className="btn btn-danger btn-sm ms-2"
@@ -250,6 +278,18 @@ const ChatHistoryPage = ({ readOnly = false, isAdmin = false }) => {
           <div className="text-center text-muted mt-2">
             Updating conversation...
           </div>
+        )}
+        {cooldownTarget && (
+          <ChatCooldownModal
+            username={cooldownTarget.username || "this user"}
+            onClose={() => setCooldownTarget(null)}
+            onConfirm={(seconds) =>
+              cooldownMutation.mutate({
+                userId: cooldownTarget.userId,
+                seconds,
+              })
+            }
+          />
         )}
       </div>
     </BasicLayout>
