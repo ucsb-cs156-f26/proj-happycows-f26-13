@@ -174,6 +174,20 @@ public class UsersControllerTests extends ControllerTestCase {
 
   @WithMockUser(roles = {"ADMIN"})
   @Test
+  public void admin_can_clear_chat_cooldown_with_zero_seconds() throws Exception {
+    User user = User.builder().id(1L).chatCooldownUntil(Instant.now().plusSeconds(600)).build();
+    when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+    MvcResult response = mockMvc.perform(post("/api/admin/users/chatCooldown").param("userId", "1").param("seconds", "0").with(csrf()))
+        .andExpect(status().isOk()).andReturn();
+
+    verify(userRepository, times(1)).save(user);
+    assertEquals(false, user.getChatCooldownUntil().isAfter(Instant.now()));
+    assertEquals("User with id 1 on chat cooldown for 0 seconds", responseToJson(response).get("message"));
+  }
+
+  @WithMockUser(roles = {"ADMIN"})
+  @Test
   public void admin_chat_cooldown_rejects_negative_seconds() throws Exception {
     MvcResult response = mockMvc.perform(post("/api/admin/users/chatCooldown").param("userId", "1").param("seconds", "-1").with(csrf()))
         .andExpect(status().isBadRequest()).andReturn();
