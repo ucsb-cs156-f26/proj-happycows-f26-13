@@ -17,7 +17,7 @@ const ManageCowsModal = ({
     const value = e.target.value;
     if (value < 0) {
       toast.warn(`Warning: You cannot ${message} a negative number of cows!`);
-    } else if (value !== "" && !Number.isInteger(Number(value))) {
+    } else if (!Number.isInteger(Number(value))) {
       toast.warn(
         `Warning: You cannot ${message} a fractional number of cows! Please enter a whole number.`,
       );
