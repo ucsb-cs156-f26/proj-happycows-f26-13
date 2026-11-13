@@ -183,6 +183,33 @@ public class FarmerControllerTests extends ControllerTestCase {
 
     @WithMockUser(roles = {"USER"})
     @Test
+    public void test_buyCow_chargesPurchaseFeePerCow() throws Exception {
+        testGame.setCowPrice(100);
+        testGame.setPurchaseFee(1);
+
+        Farmer origFarmer = getTestFarmer();
+        origFarmer.setTotalWealth(300);
+
+        Farmer updatedFarmer = getTestFarmer();
+        updatedFarmer.setTotalWealth(98);
+        updatedFarmer.setNumOfCows(3);
+        updatedFarmer.setCowsBought(2);
+
+        when(farmerRepository.findByGameIdAndUserId(eq(1L), eq(1L)))
+                .thenReturn(Optional.of(origFarmer));
+        when(gameRepository.findById(eq(1L))).thenReturn(Optional.of(testGame));
+
+        MvcResult response = mockMvc.perform(put("/api/farmer/buy?gameId=1&numCows=2")
+                        .with(csrf()))
+                .andExpect(status().isOk()).andReturn();
+
+        verify(farmerRepository, times(1)).save(updatedFarmer);
+        assertEquals(mapper.writeValueAsString(updatedFarmer),
+                response.getResponse().getContentAsString());
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
     public void test_getFarmerById_course_linked_game_requires_current_enrollment() throws Exception {
         testGame.setCourseId(17L);
         User currentUser = currentUserService.getUser();
@@ -314,6 +341,35 @@ public class FarmerControllerTests extends ControllerTestCase {
                 eq(FarmerActivity.ACTIVITY_TYPE_SELL), eq(2));
         String responseString = response.getResponse().getContentAsString();
         assertEquals(expectedReturn, responseString);
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void test_sellCow_deductsSellingFeePerCow() throws Exception {
+        testGame.setCowPrice(100);
+        testGame.setSellingFee(2);
+
+        Farmer origFarmer = getTestFarmer();
+        origFarmer.setCowHealth(100);
+        origFarmer.setNumOfCows(2);
+        origFarmer.setTotalWealth(0);
+
+        Farmer updatedFarmer = getTestFarmer();
+        updatedFarmer.setTotalWealth(196);
+        updatedFarmer.setNumOfCows(0);
+        updatedFarmer.setCowsSold(2);
+
+        when(farmerRepository.findByGameIdAndUserId(eq(1L), eq(1L)))
+                .thenReturn(Optional.of(origFarmer));
+        when(gameRepository.findById(eq(1L))).thenReturn(Optional.of(testGame));
+
+        MvcResult response = mockMvc.perform(put("/api/farmer/sell?gameId=1&numCows=2")
+                        .with(csrf()))
+                .andExpect(status().isOk()).andReturn();
+
+        verify(farmerRepository, times(1)).save(updatedFarmer);
+        assertEquals(mapper.writeValueAsString(updatedFarmer),
+                response.getResponse().getContentAsString());
     }
 
     @WithMockUser(roles = {"USER"})

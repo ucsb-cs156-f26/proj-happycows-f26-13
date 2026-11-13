@@ -45,6 +45,30 @@ describe("ManageCows tests", () => {
     );
   });
 
+  test("shows the purchase and selling fees charged per cow", () => {
+    useParams.mockReturnValue({ userId: undefined });
+    currentUserModule.useCurrentUser.mockReturnValue({ data: {} });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ManageCows
+          farmer={farmerFixtures.oneFarmer[0]}
+          game={{ cowPrice: 100, purchaseFee: 1, sellingFee: 2, milkPrice: 1 }}
+          setMessage={mockSetMessage}
+          openModal={mockOpenModal}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText("Purchase Fee: $1 per cow")).toBeInTheDocument();
+    expect(screen.getByText("Selling Fee: $2 per cow")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /costs the current cow price plus the purchase fee per cow/i,
+      ),
+    ).toBeInTheDocument();
+  });
+
   test("renders message when admin visit other pages", async () => {
     useParams.mockReturnValue({ userId: 1 }); // Replace with your desired mock values
 
