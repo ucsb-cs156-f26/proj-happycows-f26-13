@@ -1,46 +1,33 @@
-FROM ubuntu:22.04
+# syntax=docker/dockerfile:1
+FROM maven:3.9.16-eclipse-temurin-25-noble AS builder
 
-# Set environment variables to avoid interactive prompts during installation
-ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /home/app
 
-RUN apt-get update 
-RUN apt-get install -y openjdk-25-jdk  
-RUN apt-get install -y  curl  
-RUN apt-get install -y  bash  
-RUN apt-get install -y maven  
-RUN apt-get install -y  python3 
-RUN apt-get clean
-RUN rm -rf /var/lib/apt/lists/*
+# Resolve dependencies before copying frequently changing application sources.
+COPY pom.xml .
+RUN --mount=type=cache,id=happycows-maven,target=/root/.m2/repository,sharing=locked \
+    mvn -B -ntp -Pproduction dependency:go-offline
 
-# Set JAVA_HOME environment variable
-ENV JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64
-ENV PATH="$JAVA_HOME/bin:$PATH"
+COPY frontend/package.json frontend/package-lock.json frontend/
+# Keep Node outside target so that the final clean package preserves it.
+RUN --mount=type=cache,id=happycows-maven,target=/root/.m2/repository,sharing=locked \
+    --mount=type=cache,id=happycows-npm,target=/root/.npm,sharing=locked \
+    mvn -B -ntp -Pproduction -Dfrontend.installDirectory=/opt/frontend \
+        -Dfrontend.dependency.skip=false \
+        frontend:install-node-and-npm@install-node-and-npm frontend:npm@npm-install
 
-# Verify installation
-RUN java -version
+COPY . .
+RUN --mount=type=cache,id=happycows-maven,target=/root/.m2/repository,sharing=locked \
+    mvn -B -ntp -Pproduction -DskipTests -Dcache.use=true \
+        -Dfrontend.installDirectory=/opt/frontend clean package
+
+FROM eclipse-temurin:25-jre-alpine
 
 WORKDIR /app
-
-# Verify installation
-RUN java -version
-RUN curl --version
-
-ENV NODE_VERSION=24.21.0
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-ENV NVM_DIR=/root/.nvm
-RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
-RUN . "$NVM_DIR/nvm.sh" && nvm use v${NODE_VERSION}
-RUN . "$NVM_DIR/nvm.sh" && nvm alias default v${NODE_VERSION}
-ENV PATH="/root/.nvm/versions/node/v${NODE_VERSION}/bin/:${PATH}"
-
-RUN . "$NVM_DIR/nvm.sh" && nvm --version
-RUN node --version
-RUN npm --version
-
-COPY . /home/app
+RUN apk add --no-cache bash curl
 
 ENV PRODUCTION=true
-RUN mvn -B -ntp -DskipTests -Pproduction -f /home/app/pom.xml clean package
-RUN ["chmod", "+x", "/home/app/startup.sh"]
+COPY --from=builder --chmod=755 /home/app/startup.sh ./startup.sh
+COPY --from=builder /home/app/target/happycows-*.jar ./happycows.jar
 
-ENTRYPOINT ["/home/app/startup.sh","/home/app/target/*.jar"]
+ENTRYPOINT ["./startup.sh", "happycows.jar"]
