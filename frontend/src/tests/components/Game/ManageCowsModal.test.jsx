@@ -413,19 +413,21 @@ describe("ManageCowsModal", () => {
   });
 
   test("toast warning not present when input is empty", async () => {
+    const localSetNumber = vi.fn();
     render(
       <ManageCowsModal
         isOpen={true}
         onClose={mockOnClose}
         message="buy"
-        setNumber={mockSetNumber}
+        number="5"
+        setNumber={localSetNumber}
       />,
     );
 
     const input = screen.getByTestId("buy-sell-cow-modal-input");
     fireEvent.change(input, { target: { value: "" } });
 
-    expect(mockSetNumber).toHaveBeenCalledWith("");
+    expect(localSetNumber).toHaveBeenCalledWith("");
     expect(mockToast).not.toHaveBeenCalledWith(BUY_FRAC_WARN);
   });
 
