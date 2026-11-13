@@ -47,6 +47,8 @@ describe("GameForm tests", () => {
     [
       /Starting Balance/,
       /Cow Price/,
+      /Purchase Fee/,
+      /Selling Fee/,
       /Milk Price/,
       /Starting Date/,
       /Last Date/,
@@ -118,6 +120,12 @@ describe("GameForm tests", () => {
     fireEvent.change(screen.getByTestId("GameForm-startingBalance"), {
       target: { value: "" },
     });
+    fireEvent.change(screen.getByTestId("GameForm-purchaseFee"), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByTestId("GameForm-sellingFee"), {
+      target: { value: "" },
+    });
     expect(
       await screen.findByText("Cow price is required"),
     ).toBeInTheDocument();
@@ -125,6 +133,8 @@ describe("GameForm tests", () => {
     expect(
       screen.getByText("Starting Balance is required"),
     ).toBeInTheDocument();
+    expect(screen.getByText("Purchase fee is required")).toBeInTheDocument();
+    expect(screen.getByText("Selling fee is required")).toBeInTheDocument();
 
     //Reset to Invalid Values
     fireEvent.change(screen.getByTestId("GameForm-milkPrice"), {
@@ -134,6 +144,12 @@ describe("GameForm tests", () => {
       target: { value: "-1" },
     });
     fireEvent.change(screen.getByTestId("GameForm-startingBalance"), {
+      target: { value: "-1" },
+    });
+    fireEvent.change(screen.getByTestId("GameForm-purchaseFee"), {
+      target: { value: "-1" },
+    });
+    fireEvent.change(screen.getByTestId("GameForm-sellingFee"), {
       target: { value: "-1" },
     });
     fireEvent.change(screen.getByTestId("GameForm-startingDate"), {
@@ -155,6 +171,8 @@ describe("GameForm tests", () => {
       "GameForm-milkPrice",
       "GameForm-cowPrice",
       "GameForm-startingBalance",
+      "GameForm-purchaseFee",
+      "GameForm-sellingFee",
       "GameForm-startingDate",
       "GameForm-lastDate",
     ].forEach((item) => {
@@ -188,6 +206,8 @@ describe("GameForm tests", () => {
       milkPrice: 1,
       degradationRate: 0.001,
       carryingCapacity: 100,
+      purchaseFee: 0,
+      sellingFee: 0,
       startingDate: today,
       lastDate: fourMonthsLater,
     };
@@ -211,6 +231,8 @@ describe("GameForm tests", () => {
       "carryingCapacity",
       "milkPrice",
       "cowPrice",
+      "purchaseFee",
+      "sellingFee",
       "startingBalance",
       "startingDate",
       "lastDate",
@@ -256,8 +278,18 @@ describe("GameForm tests", () => {
     fireEvent.change(screen.getByTestId("GameForm-startingBalance"), {
       target: { value: "-1" },
     });
+    fireEvent.change(screen.getByTestId("GameForm-purchaseFee"), {
+      target: { value: "-1" },
+    });
+    fireEvent.change(screen.getByTestId("GameForm-sellingFee"), {
+      target: { value: "-1" },
+    });
     fireEvent.click(submitButton);
     await screen.findByText(/Starting Balance must be ≥ 0.00/i);
+
+    fireEvent.click(submitButton);
+    await screen.findByText(/Purchase fee must be ≥ 0.00/i);
+    await screen.findByText(/Selling fee must be ≥ 0.00/i);
 
     fireEvent.change(screen.getByTestId("GameForm-cowPrice"), {
       target: { value: "-1" },
