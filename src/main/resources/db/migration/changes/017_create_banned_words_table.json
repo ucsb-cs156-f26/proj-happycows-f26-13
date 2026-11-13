@@ -1,0 +1,55 @@
+{
+  "databaseChangeLog": [
+    {
+      "changeSet": {
+        "id": "017-BANNED-WORDS",
+        "author": "AlexPeroulas",
+        "preConditions": [
+          {
+            "onFail": "MARK_RAN"
+          },
+          {
+            "not": [
+              {
+                "tableExists": {
+                  "tableName": "BANNED_WORDS"
+                }
+              }
+            ]
+          }
+        ],
+        "changes": [
+          {
+            "createTable": {
+              "columns": [
+                {
+                  "column": {
+                    "autoIncrement": true,
+                    "constraints": {
+                      "nullable": false,
+                      "primaryKey": true,
+                      "primaryKeyName": "BANNED_WORDS_PK"
+                    },
+                    "name": "ID",
+                    "type": "BIGINT"
+                  }
+                },
+                {
+                  "column": {
+                    "constraints": {
+                      "nullable": false,
+                      "unique": true
+                    },
+                    "name": "WORD",
+                    "type": "VARCHAR(255)"
+                  }
+                }
+              ],
+              "tableName": "BANNED_WORDS"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
