@@ -14,6 +14,7 @@ import { vi, describe, test, beforeEach, beforeAll, expect } from "vitest";
 import * as reactQuery from "react-query";
 import * as backend from "main/utils/useBackend";
 import ChatHistoryPage from "main/pages/ChatHistoryPage";
+import { toast } from "react-toastify";
 
 vi.mock("main/layouts/BasicLayout/BasicLayout", () => ({
   __esModule: true,
@@ -453,6 +454,99 @@ describe("ChatHistoryPage", () => {
     ).not.toBeInTheDocument();
 
     useInfiniteQuerySpy.mockRestore();
+  });
+
+  // cooldown tests
+  test("non-admin mode does not render Cooldown button", () => {
+    mockInfiniteQuery({
+      data: { pages: [{ content: [{ id: 41, userId: 5, hidden: false }] }] },
+    });
+
+    renderWithProviders(<ChatHistoryPage isAdmin={false} />);
+    expect(
+      screen.queryByTestId("ChatHistoryPage-cooldown-41"),
+    ).not.toBeInTheDocument();
+  });
+
+  test("admin mode renders Cooldown button, including on deleted messages", () => {
+    mockInfiniteQuery({
+      data: {
+        pages: [
+          {
+            content: [
+              { id: 42, userId: 5, hidden: false },
+              { id: 43, userId: 7, hidden: true },
+            ],
+          },
+        ],
+      },
+    });
+
+    renderWithProviders(<ChatHistoryPage isAdmin={true} />);
+
+    const button = screen.getByTestId("ChatHistoryPage-cooldown-42");
+    expect(button).toHaveTextContent("Cooldown");
+    expect(button).toHaveClass("btn", "btn-warning", "btn-sm", "ms-2");
+    expect(
+      screen.getByTestId("ChatHistoryPage-cooldown-43"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("ChatCooldownModal")).not.toBeInTheDocument();
+  });
+
+  test("clicking Cooldown opens modal for that user; confirm calls mutation and closes", async () => {
+    const mutate = vi.fn();
+    vi.spyOn(backend, "useBackendMutation").mockReturnValue({ mutate });
+    mockInfiniteQuery({
+      data: { pages: [{ content: [{ id: 44, userId: 7, hidden: false }] }] },
+    });
+
+    renderWithProviders(<ChatHistoryPage isAdmin={true} />);
+
+    fireEvent.click(screen.getByTestId("ChatHistoryPage-cooldown-44"));
+    expect(screen.getByText("Chat cooldown for Bob")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("ChatCooldownModal-confirm"));
+    expect(mutate).toHaveBeenCalledWith({ userId: 7, seconds: 300 });
+    await waitFor(() =>
+      expect(screen.queryByTestId("ChatCooldownModal")).not.toBeInTheDocument(),
+    );
+  });
+
+  test("Cooldown modal falls back to 'this user' when username is unknown; cancel closes without mutating", async () => {
+    const mutate = vi.fn();
+    vi.spyOn(backend, "useBackendMutation").mockReturnValue({ mutate });
+    mockInfiniteQuery({
+      data: { pages: [{ content: [{ id: 45, userId: 99, hidden: false }] }] },
+    });
+
+    renderWithProviders(<ChatHistoryPage isAdmin={true} />);
+
+    fireEvent.click(screen.getByTestId("ChatHistoryPage-cooldown-45"));
+    expect(screen.getByText("Chat cooldown for this user")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("ChatCooldownModal-cancel"));
+    expect(mutate).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.queryByTestId("ChatCooldownModal")).not.toBeInTheDocument(),
+    );
+  });
+
+  test("cooldown mutation posts to chatCooldown endpoint and toasts success", () => {
+    const mutationSpy = vi.spyOn(backend, "useBackendMutation");
+    const toastSpy = vi.spyOn(toast, "success").mockImplementation(() => {});
+    mockInfiniteQuery();
+
+    renderWithProviders(<ChatHistoryPage isAdmin={true} />);
+
+    const [mutationFn, options] = mutationSpy.mock.calls[1];
+    expect(mutationFn({ userId: 7, seconds: 60 })).toEqual({
+      url: "/api/admin/users/chatCooldown",
+      method: "POST",
+      params: { userId: 7, seconds: 60 },
+    });
+
+    options.onSuccess({ message: "User with id 7 on chat cooldown" });
+    expect(toastSpy).toHaveBeenCalledWith("User with id 7 on chat cooldown");
   });
 
   test("observer is registered only when hasNextPage is true; cleanup calls unobserve", async () => {
