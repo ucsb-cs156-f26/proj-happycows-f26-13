@@ -474,6 +474,21 @@ describe("ManageCowsModal", () => {
       />,
     );
 
+    const footer = screen.getByTestId("buy-sell-cow-modal-footer");
+    expect(footer).toBeInTheDocument();
+    expect(footer).toHaveStyle("border-top-width: 0px");
+  });
+
+  test("Check styling of modal components", () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        setNumber={mockSetNumber}
+      />,
+    );
+
     expect(screen.getByTestId("buy-sell-cow-modal-footer")).toHaveAttribute(
       "style",
       expect.stringContaining("border-top"),
