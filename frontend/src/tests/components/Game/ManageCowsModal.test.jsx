@@ -207,6 +207,26 @@ describe("ManageCowsModal", () => {
     expect(screen.queryByTestId("buy-sell-cow-modal")).not.toBeInTheDocument();
   });
 
+  test("does not trigger fractional toast warning when input is cleared to empty string", async () => {
+    const localSetNumber = vi.fn();
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        number="1.5"
+        setNumber={localSetNumber}
+      />,
+    );
+
+    const input = screen.getByTestId("buy-sell-cow-modal-input");
+    fireEvent.change(input, { target: { value: "" } });
+
+    expect(localSetNumber).toHaveBeenCalledWith("");
+    // Ensures clearing to empty string doesn't erroneously throw a fractional warning
+    expect(mockToast).not.toHaveBeenCalledWith(BUY_FRAC_WARN);
+  });
+
   test("calls onClose and setNumber when close button is clicked", () => {
     render(
       <ManageCowsModal
@@ -466,7 +486,7 @@ describe("ManageCowsModal", () => {
     expect(mockSetNumber).toHaveBeenCalledWith("10");
   });
 
-  test("Check styling of modal components", () => {
+  test("Check styling of modal components for footer", () => {
     render(
       <ManageCowsModal
         isOpen={true}
