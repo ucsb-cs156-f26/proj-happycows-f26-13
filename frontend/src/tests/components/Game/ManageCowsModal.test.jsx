@@ -393,7 +393,7 @@ describe("ManageCowsModal", () => {
     expect(mockToast).toHaveBeenCalledWith(msg);
   });
 
-  test("toast warning not present when buying 0 cows", async () => {
+  test("no negative warning toast when buying 0 cows", async () => {
     render(
       <ManageCowsModal
         isOpen={true}
@@ -412,7 +412,7 @@ describe("ManageCowsModal", () => {
     );
   });
 
-  test("toast warning not present when selling 0 cows", async () => {
+  test("no negative warning toast when selling 0 cows", async () => {
     render(
       <ManageCowsModal
         isOpen={true}
