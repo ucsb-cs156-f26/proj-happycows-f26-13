@@ -1,0 +1,40 @@
+{
+  "databaseChangeLog": [
+    {
+      "changeSet": {
+        "id": "016-Add-Chat-Cooldown-To-Users",
+        "author": "AlexPeroulas",
+        "preConditions": [
+          {
+            "onFail": "MARK_RAN"
+          },
+          {
+            "not": [
+              {
+                "columnExists": {
+                  "tableName": "users",
+                  "columnName": "chat_cooldown_until"
+                }
+              }
+            ]
+          }
+        ],
+        "changes": [
+          {
+            "addColumn": {
+              "tableName": "users",
+              "columns": [
+                {
+                  "column": {
+                    "name": "chat_cooldown_until",
+                    "type": "TIMESTAMP"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
