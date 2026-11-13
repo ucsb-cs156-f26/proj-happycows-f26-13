@@ -280,6 +280,30 @@ describe("PlayPage tests", () => {
     );
   });
 
+  test.each([
+    [98, "PlayPageBackground-Smiling"],
+    [60, "PlayPageBackground-Neutral"],
+    [30, "PlayPageBackground-Frowning"],
+    [10, "PlayPageBackground-Dead"],
+  ])(
+    "Background changes with cow health (%p -> %s)",
+    async (cowHealth, expectedName) => {
+      setupDefaultMocks({
+        farmerResponse: {
+          status: 200,
+          body: { ...defaultFarmer, cowHealth, numOfCows: 1 },
+        },
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("playpage-div").style.backgroundImage,
+        ).toContain(expectedName);
+      });
+    },
+  );
+
   test("Chat toggle button opens and closes the ChatPanel", async () => {
     renderPage();
 

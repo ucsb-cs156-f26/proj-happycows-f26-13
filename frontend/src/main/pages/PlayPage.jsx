@@ -11,7 +11,7 @@ import Profits from "main/components/Game/Profits";
 import { useBackend, useBackendMutation } from "main/utils/useBackend";
 import { hasRole } from "main/utils/currentUser";
 import { useCurrentUser } from "main/utils/currentUser";
-import Background from "../../assets/PlayPageBackground.jpg";
+import { getPlayPageBackground } from "main/utils/playPageBackgroundUtils";
 import ChatPanel from "main/components/Chat/ChatPanel";
 import ManageCowsModal from "main/components/Game/ManageCowsModal";
 
@@ -205,7 +205,7 @@ export default function PlayPage() {
     <div
       style={{
         backgroundSize: "cover",
-        backgroundImage: `url(${Background})`,
+        backgroundImage: `url(${getPlayPageBackground(farmer?.cowHealth)})`,
       }}
       data-testid="playpage-div"
     >
