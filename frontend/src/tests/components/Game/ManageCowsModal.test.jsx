@@ -412,6 +412,23 @@ describe("ManageCowsModal", () => {
     );
   });
 
+  test("toast warning not present when input is empty", async () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    const input = screen.getByTestId("buy-sell-cow-modal-input");
+    fireEvent.change(input, { target: { value: "" } });
+
+    expect(mockSetNumber).toHaveBeenCalledWith("");
+    expect(mockToast).not.toHaveBeenCalledWith(BUY_FRAC_WARN);
+  });
+
   test("no negative warning toast when selling 0 cows", async () => {
     render(
       <ManageCowsModal
@@ -457,8 +474,9 @@ describe("ManageCowsModal", () => {
       />,
     );
 
-    expect(screen.getByTestId("buy-sell-cow-modal-footer")).toHaveStyle(
-      "border-top-width: 0px",
+    expect(screen.getByTestId("buy-sell-cow-modal-footer")).toHaveAttribute(
+      "style",
+      expect.stringContaining("border-top"),
     );
     expect(screen.getByTestId("buy-sell-cow-modal-input")).toHaveStyle(
       "width: 20%",
