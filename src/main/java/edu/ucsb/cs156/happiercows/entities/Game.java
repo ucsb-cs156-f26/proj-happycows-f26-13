@@ -25,6 +25,8 @@ public class Game {
 
     private String name;
     private double cowPrice;
+    private double purchaseFee;
+    private double sellingFee;
     private double milkPrice;
     private double startingBalance;
     private LocalDateTime startingDate;

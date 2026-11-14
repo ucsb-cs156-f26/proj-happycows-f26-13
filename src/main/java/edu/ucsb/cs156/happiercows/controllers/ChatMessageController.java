@@ -21,10 +21,13 @@ import edu.ucsb.cs156.happiercows.repositories.ChatMessageRepository;
 import edu.ucsb.cs156.happiercows.entities.User;
 import edu.ucsb.cs156.happiercows.entities.Farmer;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
+import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 
 import org.springframework.security.core.Authentication;
 
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 
 @Tag(name = "Chat Message")
@@ -38,6 +41,9 @@ public class ChatMessageController extends ApiController{
 
     @Autowired
     private FarmerRepository farmerRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     ObjectMapper mapper;
@@ -106,6 +112,14 @@ public class ChatMessageController extends ApiController{
         
         User user = getCurrentUser().getUser();
         Long userId = user.getId();
+
+        // Read fresh from DB so a cooldown set after login applies immediately
+        Instant cooldownUntil = userRepository.findById(userId).map(User::getChatCooldownUntil).orElse(null);
+        if (cooldownUntil != null && cooldownUntil.isAfter(Instant.now())) {
+            long secondsLeft = Duration.between(Instant.now(), cooldownUntil).toSeconds() + 1;
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(genericMessage("You are on a chat cooldown for %d more seconds".formatted(secondsLeft)));
+        }
 
         // Make sure the user is part of the game and showChat is true, or user is an admin
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
