@@ -109,8 +109,9 @@ public class FarmerController extends ApiController {
         .orElseThrow(
             () -> new EntityNotFoundException(Farmer.class, "gameId", gameId, "userId", userId));
 
-        if(farmer.getTotalWealth() >= (game.getCowPrice() * numCows)){
-          farmer.setTotalWealth(farmer.getTotalWealth() - (game.getCowPrice() * numCows));
+        double costPerCow = game.getCowPrice() + game.getPurchaseFee();
+        if(farmer.getTotalWealth() >= (costPerCow * numCows)){
+          farmer.setTotalWealth(farmer.getTotalWealth() - (costPerCow * numCows));
           farmer.setNumOfCows(farmer.getNumOfCows() + numCows);
           farmer.setCowsBought(farmer.getCowsBought() + numCows);
         }
@@ -150,7 +151,8 @@ public class FarmerController extends ApiController {
 
 
         if(farmer.getNumOfCows() >= numCows ){
-          double cowValue = game.getCowPrice() * farmer.getCowHealth() / 100;
+          double cowValue = game.getCowPrice() * farmer.getCowHealth() / 100
+              - game.getSellingFee();
           farmer.setTotalWealth(farmer.getTotalWealth() + (cowValue * numCows));
           farmer.setNumOfCows(farmer.getNumOfCows() - numCows);
           farmer.setCowsSold(farmer.getCowsSold() + numCows);

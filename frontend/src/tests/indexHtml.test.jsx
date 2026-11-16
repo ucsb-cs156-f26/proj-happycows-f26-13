@@ -14,4 +14,22 @@ describe("frontend/index.html metadata", () => {
     const doc = new DOMParser().parseFromString(indexHtml, "text/html");
     expect(doc.title).toBe("HappyCows");
   });
+
+  test("favicon points to existing cow icon", () => {
+    const doc = new DOMParser().parseFromString(indexHtml, "text/html");
+    const favicon = doc.querySelector('link[rel="icon"]');
+
+    expect(favicon).not.toBeNull();
+    expect(favicon.getAttribute("href")).toBe("/favicon.ico");
+
+    const faviconPath = path.join(
+      __dirname,
+      "..",
+      "..",
+      "public",
+      "favicon.ico",
+    );
+
+    expect(fs.existsSync(faviconPath)).toBe(true);
+  });
 });
