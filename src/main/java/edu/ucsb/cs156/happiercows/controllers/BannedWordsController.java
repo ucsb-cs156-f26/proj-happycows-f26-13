@@ -31,13 +31,14 @@ public class BannedWordsController extends ApiController {
         return bannedWordRepository.findAll();
     }
 
-    @Operation(summary = "Add a banned word (single word, stored lowercase)")
+    @Operation(summary = "Add a banned word or phrase (stored lowercase)")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     @PostMapping("/post")
     public Object addBannedWord(@Parameter(name = "word") @RequestParam String word) {
-        String normalized = word.trim().toLowerCase();
-        if (normalized.isEmpty() || normalized.matches(".*\\s.*")) {
-            return ResponseEntity.badRequest().body(genericMessage("Banned word must be a single word"));
+        // Collapse runs of whitespace so "darn   it" and "darn it" count as the same phrase
+        String normalized = word.trim().replaceAll("\\s+", " ").toLowerCase();
+        if (normalized.isEmpty()) {
+            return ResponseEntity.badRequest().body(genericMessage("Banned word cannot be blank"));
         }
         if (bannedWordRepository.findByWord(normalized).isPresent()) {
             return ResponseEntity.badRequest().body(genericMessage("'%s' is already banned".formatted(normalized)));

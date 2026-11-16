@@ -123,18 +123,22 @@ public class BannedWordsControllerTests extends ControllerTestCase {
 
     verify(bannedWordRepository, never()).save(any(BannedWord.class));
     Map<String, Object> json = responseToJson(response);
-    assertEquals("Banned word must be a single word", json.get("message"));
+    assertEquals("Banned word cannot be blank", json.get("message"));
   }
 
   @WithMockUser(roles = { "ADMIN" })
   @Test
-  public void admin_cannot_add_word_with_spaces() throws Exception {
-    MvcResult response = mockMvc.perform(post("/api/admin/bannedwords/post").param("word", "darn it").with(csrf()))
-        .andExpect(status().isBadRequest()).andReturn();
+  public void admin_can_add_phrase_with_whitespace_collapsed() throws Exception {
+    BannedWord expected = BannedWord.builder().word("darn it").build();
+    when(bannedWordRepository.findByWord("darn it")).thenReturn(Optional.empty());
+    when(bannedWordRepository.save(expected)).thenReturn(expected);
 
-    verify(bannedWordRepository, never()).save(any(BannedWord.class));
-    Map<String, Object> json = responseToJson(response);
-    assertEquals("Banned word must be a single word", json.get("message"));
+    MvcResult response = mockMvc.perform(post("/api/admin/bannedwords/post").param("word", " Darn \t  IT ").with(csrf()))
+        .andExpect(status().isOk()).andReturn();
+
+    verify(bannedWordRepository, times(1)).findByWord("darn it");
+    verify(bannedWordRepository, times(1)).save(expected);
+    assertEquals(mapper.writeValueAsString(expected), response.getResponse().getContentAsString());
   }
 
   @WithMockUser(roles = { "ADMIN" })
