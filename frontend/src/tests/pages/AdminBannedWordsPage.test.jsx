@@ -126,7 +126,7 @@ describe("AdminBannedWordsPage tests", () => {
     expect(await screen.findByText("darn")).toBeInTheDocument();
 
     const input = screen.getByRole("textbox", { name: "Word" });
-    fireEvent.change(input, { target: { value: "heck" } });
+    fireEvent.change(input, { target: { value: "darn it" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     await waitFor(() => {
@@ -134,8 +134,8 @@ describe("AdminBannedWordsPage tests", () => {
       expect(input).toHaveValue("");
     });
 
-    expect(axiosMock.history.post[0].params).toEqual({ word: "heck" });
-    expect(await screen.findByText("heck")).toBeInTheDocument();
+    expect(axiosMock.history.post[0].params).toEqual({ word: "darn it" });
+    expect(await screen.findByText("darn it")).toBeInTheDocument();
   });
 
   test("deletes a word and refreshes the list", async () => {
@@ -165,9 +165,8 @@ describe("AdminBannedWordsPage tests", () => {
   });
 
   test.each([
-    ["duplicate", "darn", "Word already exists"],
-    ["spaces", "two words", "Word cannot contain spaces"],
-    ["blank", "", "Word cannot be blank"],
+    ["duplicate", "darn", "'darn' is already banned"],
+    ["blank", "", "Banned word cannot be blank"],
   ])("shows the backend error for %s input", async (_case, value, message) => {
     axiosMock.onGet(endpoint).reply(200, []);
     axiosMock.onPost("/api/admin/bannedwords/post").reply(400, { message });
