@@ -11,6 +11,7 @@ import "bootstrap/dist/css/bootstrap.css";
 import "react-toastify/dist/ReactToastify.css";
 
 import AdminUsersPage from "main/pages/AdminUsersPage";
+import AdminBannedWordsPage from "main/pages/AdminBannedWordsPage";
 import AdminJobsPage from "main/pages/AdminJobsPage";
 import AdminJobLogPage from "main/pages/AdminJobLogPage";
 import AdminCreateGamePage from "main/pages/AdminCreateGamePage";
@@ -41,6 +42,7 @@ function App() {
   const adminRoutes = hasRole(currentUser, "ROLE_ADMIN") ? (
     <>
       <Route path="/admin/users" element={<AdminUsersPage />} />
+      <Route path="/admin/bannedwords" element={<AdminBannedWordsPage />} />
       <Route path="/admin/jobs" element={<AdminJobsPage />} />
       <Route path="/admin/jobs/logs/:id" element={<AdminJobLogPage />} />
       <Route path="/admin/reports" element={<AdminReportsPage />} />
