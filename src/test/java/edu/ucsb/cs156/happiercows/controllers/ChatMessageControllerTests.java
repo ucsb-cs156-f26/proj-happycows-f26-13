@@ -10,8 +10,11 @@ import static org.mockito.ArgumentMatchers.any;
 
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 import edu.ucsb.cs156.happiercows.testconfig.TestConfig;
+import java.time.Instant;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Optional;
+import edu.ucsb.cs156.happiercows.entities.User;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -336,6 +339,49 @@ public class ChatMessageControllerTests extends ControllerTestCase {
         String expectedResponseString = mapper.writeValueAsString(chatMessage);
         log.info("Got back from API: {}",responseString);
         assertEquals(expectedResponseString, responseString);
+    }
+
+    //* */ cooldown tests
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void userOnCooldownCannotPostChatMessages() throws Exception {
+        User u = User.builder().id(1L).chatCooldownUntil(Instant.now().plusSeconds(60)).build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+
+        MvcResult response = mockMvc.perform(post("/api/chat/post?gameId={gameId}&content={content}", 1L, "hi").with(csrf()))
+            .andExpect(status().isForbidden()).andReturn();
+
+        verify(chatMessageRepository, times(0)).save(any(ChatMessage.class));
+        Map<String, Object> json = responseToJson(response);
+        assertEquals("You are on a chat cooldown for 60 more seconds", json.get("message"));
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void userWithExpiredCooldownCanPostChatMessages() throws Exception {
+        User u = User.builder().id(1L).chatCooldownUntil(Instant.now().minusSeconds(1)).build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+        Farmer farmer = Farmer.builder().game(Game.builder().showChat(true).build()).build();
+        when(farmerRepository.findByGameIdAndUserId(1L, 1L)).thenReturn(Optional.of(farmer));
+
+        mockMvc.perform(post("/api/chat/post?gameId={gameId}&content={content}", 1L, "hi").with(csrf()))
+            .andExpect(status().isOk());
+
+        verify(chatMessageRepository, times(1)).save(any(ChatMessage.class));
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void userWithNullCooldownCanPostChatMessages() throws Exception {
+        User u = User.builder().id(1L).build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+        Farmer farmer = Farmer.builder().game(Game.builder().showChat(true).build()).build();
+        when(farmerRepository.findByGameIdAndUserId(1L, 1L)).thenReturn(Optional.of(farmer));
+
+        mockMvc.perform(post("/api/chat/post?gameId={gameId}&content={content}", 1L, "hi").with(csrf()))
+            .andExpect(status().isOk());
+
+        verify(chatMessageRepository, times(1)).save(any(ChatMessage.class));
     }
 
     //* */ hide tests
