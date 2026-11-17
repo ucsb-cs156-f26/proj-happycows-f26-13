@@ -2,29 +2,26 @@ import React from "react";
 import OurTable from "main/components/OurTable";
 import { Button } from "react-bootstrap";
 import { useBackend } from "main/utils/useBackend";
-import { useParams } from "react-router";
+import { useSearchParams, useParams } from "react-router";
 import { formatPacificDate } from "main/utils/dateUtils";
 
 const PagedProfitsTable = () => {
   const testId = "PagedProfitsTable";
   const refreshJobsIntervalMilliseconds = 5000;
 
-  const [selectedPage, setSelectedPage] = React.useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedPage = parseInt(searchParams.get("pageNumber") || "0", 10);
 
   const PROFIT_PAGE_SIZE = 5;
   const { gameId, userId } = useParams();
 
-  // A :userId route param means we're on the admin read-only view
-  // (/admin/play/:gameId/user/:userId) looking at another farmer's page, so
-  // we need the admin endpoint that takes an explicit userId instead of the
-  // current-user endpoint, which would otherwise return the logged-in
-  // admin's own profits (or 404, since the admin usually isn't a farmer in
-  // this game at all).
   const isAdminView = userId !== undefined;
 
-  // Stryker disable all
   const { data: page } = useBackend(
-    [isAdminView ? "/api/profits/paged" : "/api/profits/paged/gameid"],
+    [
+      isAdminView ? "/api/profits/paged" : "/api/profits/paged/gameid",
+      selectedPage,
+    ],
     {
       method: "GET",
       url: isAdminView ? "/api/profits/paged" : "/api/profits/paged/gameid",
@@ -38,19 +35,18 @@ const PagedProfitsTable = () => {
     { content: [], totalPages: 0 },
     { refetchInterval: refreshJobsIntervalMilliseconds },
   );
-  // Stryker restore  all
 
   const testid = "PagedProfitsTable";
 
   const previousPageCallback = () => {
     return () => {
-      setSelectedPage(selectedPage - 1);
+      setSearchParams({ pageNumber: (selectedPage - 1).toString() });
     };
   };
 
   const nextPageCallback = () => {
     return () => {
-      setSelectedPage(selectedPage + 1);
+      setSearchParams({ pageNumber: (selectedPage + 1).toString() });
     };
   };
 
@@ -87,7 +83,6 @@ const PagedProfitsTable = () => {
         desc: true,
       },
     ],
-    // Stryker disable next-line all
     [],
   );
 
