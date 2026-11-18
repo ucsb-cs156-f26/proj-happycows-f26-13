@@ -180,6 +180,19 @@ describe("PlayPage tests", () => {
     expect(await screen.findByText("Herd #9")).toBeInTheDocument();
     expect(screen.queryByText("Herd #8")).not.toBeInTheDocument();
     expect(screen.getByText("Total cows in herds: 6")).toBeInTheDocument();
+    // Navigating must retain two independent cached lists, not overwrite one
+    // shared entry even if the new game happens to trigger another fetch.
+    expect(
+      queryClient
+        .getQueryCache()
+        .getAll()
+        .map((query) => query.state.data),
+    ).toEqual(
+      expect.arrayContaining([
+        [{ id: 8, numCows: 4, health: 72 }],
+        [{ id: 9, numCows: 6, health: 88 }],
+      ]),
+    );
     expect(
       axiosMock.history.get
         .filter((call) => call.url === "/api/herds/forcurrentuser")
