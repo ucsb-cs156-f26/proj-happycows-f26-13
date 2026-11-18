@@ -5,6 +5,7 @@ import PagedProfitsTable from "main/components/Game/PagedProfitsTable";
 import pagedProfitsFixtures from "fixtures/pagedProfitsFixtures";
 import axios from "axios";
 import AxiosMockAdapter from "axios-mock-adapter";
+import { vi } from "vitest";
 
 vi.mock("react-router", async () => ({
   ...(await vi.importActual("react-router")),
@@ -233,6 +234,126 @@ describe("PagedProfitsTable tests", () => {
     expect(axiosMock.history.get[0].params).toEqual({
       userId: "42",
       gameId: "7",
+      pageNumber: 0,
+      pageSize: 5,
+    });
+  });
+
+  test("uses the farmer endpoint when no userId is present", async () => {
+    // arrange
+    useParams.mockReturnValue({ gameId: "1" });
+    axiosMock
+      .onGet("/api/profits/paged/gameid")
+      .reply(200, pagedProfitsFixtures.onePage);
+
+    // act
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PagedProfitsTable />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // assert
+    await screen.findByTestId(`${testId}-cell-row-0-col-amount`);
+
+    expect(axiosMock.history.get[0].url).toBe("/api/profits/paged/gameid");
+    expect(axiosMock.history.get[0].params).toEqual({
+      gameId: "1",
+      pageNumber: 0,
+      pageSize: 5,
+    });
+  });
+
+  test("navigates to next page when next button is clicked", async () => {
+    // arrange
+    useParams.mockReturnValue({ gameId: "1" });
+    axiosMock
+      .onGet("/api/profits/paged/gameid", {
+        params: { gameId: "1", pageNumber: 0, pageSize: 5 },
+      })
+      .reply(200, pagedProfitsFixtures.twoPages[0]);
+    axiosMock
+      .onGet("/api/profits/paged/gameid", {
+        params: { gameId: "1", pageNumber: 1, pageSize: 5 },
+      })
+      .reply(200, pagedProfitsFixtures.twoPages[1]);
+
+    // act
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PagedProfitsTable />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // assert
+    await waitFor(() => {
+      expect(screen.getByText(`Page: 1`)).toBeInTheDocument();
+    });
+
+    const nextButton = screen.getByTestId(`${testId}-next-button`);
+    expect(nextButton).toBeEnabled();
+
+    fireEvent.click(nextButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(`Page: 2`)).toBeInTheDocument();
+    });
+
+    expect(axiosMock.history.get.length).toBe(2);
+    expect(axiosMock.history.get[1].params).toEqual({
+      gameId: "1",
+      pageNumber: 1,
+      pageSize: 5,
+    });
+  });
+
+  test("navigates to previous page when previous button is clicked", async () => {
+    // arrange
+    useParams.mockReturnValue({ gameId: "1" });
+    axiosMock
+      .onGet("/api/profits/paged/gameid", {
+        params: { gameId: "1", pageNumber: 0, pageSize: 5 },
+      })
+      .reply(200, pagedProfitsFixtures.twoPages[0]);
+    axiosMock
+      .onGet("/api/profits/paged/gameid", {
+        params: { gameId: "1", pageNumber: 1, pageSize: 5 },
+      })
+      .reply(200, pagedProfitsFixtures.twoPages[1]);
+
+    // act - start at page 1 (by setting URL params)
+    const url = new URL("http://localhost/play/1");
+    url.searchParams.set("pageNumber", "1");
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[url.pathname + url.search]}>
+          <PagedProfitsTable />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // assert
+    await waitFor(() => {
+      expect(screen.getByText(`Page: 2`)).toBeInTheDocument();
+    });
+
+    const previousButton = screen.getByTestId(`${testId}-previous-button`);
+    expect(previousButton).toBeEnabled();
+
+    fireEvent.click(previousButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(`Page: 1`)).toBeInTheDocument();
+    });
+
+    expect(axiosMock.history.get.length).toBe(2);
+    expect(axiosMock.history.get[1].params).toEqual({
+      gameId: "1",
       pageNumber: 0,
       pageSize: 5,
     });
