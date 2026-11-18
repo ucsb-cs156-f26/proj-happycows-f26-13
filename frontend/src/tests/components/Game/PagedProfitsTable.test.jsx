@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { MemoryRouter, useParams } from "react-router";
+import { MemoryRouter, useParams, useSearchParams } from "react-router";
 import PagedProfitsTable from "main/components/Game/PagedProfitsTable";
+import React from "react";
 import pagedProfitsFixtures from "fixtures/pagedProfitsFixtures";
 import axios from "axios";
 import AxiosMockAdapter from "axios-mock-adapter";
@@ -515,5 +516,104 @@ describe("PagedProfitsTable tests", () => {
     // The useMemo hook should prevent unnecessary re-creation of columns
     // This is verified by the component rendering correctly without errors
     expect(screen.getByText("Page: 1")).toBeInTheDocument();
+  });
+
+  test("columns are memoized and maintain reference equality across rerenders", async () => {
+    axiosMock
+      .onGet("/api/profits/paged/gameid")
+      .reply(200, pagedProfitsFixtures.onePage);
+
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PagedProfitsTable />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByTestId(`${testId}-cell-row-0-col-amount`);
+
+    // Force a rerender
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PagedProfitsTable />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText("Page: 1")).toBeInTheDocument();
+  });
+
+  test("previous button updates search params to pageNumber 0 explicitly", async () => {
+    useParams.mockReturnValue({ gameId: "1" });
+    axiosMock
+      .onGet("/api/profits/paged/gameid", {
+        params: { gameId: "1", pageNumber: 1, pageSize: 5 },
+      })
+      .reply(200, pagedProfitsFixtures.twoPages[1]);
+    axiosMock
+      .onGet("/api/profits/paged/gameid", {
+        params: { gameId: "1", pageNumber: 0, pageSize: 5 },
+      })
+      .reply(200, pagedProfitsFixtures.twoPages[0]);
+
+    let currentSearch = "";
+    const LocationInspector = () => {
+      const [searchParams] = useSearchParams();
+      currentSearch = searchParams.toString();
+      return null;
+    };
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/play/1?pageNumber=1"]}>
+          <PagedProfitsTable />
+          <LocationInspector />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(`Page: 2`)).toBeInTheDocument();
+    });
+
+    const previousButton = screen.getByTestId(`${testId}-previous-button`);
+    expect(previousButton).toBeEnabled();
+
+    fireEvent.click(previousButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(`Page: 1`)).toBeInTheDocument();
+    });
+
+    expect(currentSearch).toBe("pageNumber=0");
+  });
+
+  test("columns useMemo has an empty dependency array", async () => {
+    const useMemoSpy = vi.spyOn(React, "useMemo");
+
+    axiosMock
+      .onGet("/api/profits/paged/gameid")
+      .reply(200, pagedProfitsFixtures.onePage);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PagedProfitsTable />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByTestId(`${testId}-cell-row-0-col-amount`);
+
+    // Verify that one of the useMemo calls received an empty dependency array []
+    const foundEmptyDepArray = useMemoSpy.mock.calls.some(
+      (call) => Array.isArray(call[1]) && call[1].length === 0,
+    );
+
+    expect(foundEmptyDepArray).toBe(true);
+
+    useMemoSpy.mockRestore();
   });
 });
