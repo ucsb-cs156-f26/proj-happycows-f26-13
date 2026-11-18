@@ -9,4 +9,4 @@ export JDBC_DATABASE_URL=jdbc:postgresql://$(printf '%s\n' "$DATABASE_URL" | cut
 
 export JDBC_DATABASE_USERNAME=postgres
 
-exec java -jar "$1"
+exec java -jar "$1" -XX:-UseBASE64Intrinsics
