@@ -1,0 +1,26 @@
+# Local secrets and generated output must never enter the build context.
+.env
+.env.*
+**/target
+**/node_modules
+frontend/build
+frontend/coverage
+frontend/reports
+frontend/.stryker-tmp
+frontend/storybook-static
+frontend/storybook_static
+
+# Development and documentation files are not needed to package the application.
+.devcontainer
+.github
+.idea
+.vscode
+.junie
+docs
+frontend/.storybook
+frontend/docs-index
+**/*.md
+*.log
+.DS_Store
+
+# Keep .git when Dokku supplies it: the packaged app reports its source commit.
