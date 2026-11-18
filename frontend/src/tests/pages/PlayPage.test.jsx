@@ -113,7 +113,7 @@ describe("PlayPage tests", () => {
   };
 
   const renderPage = () => {
-    render(
+    return render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
           <PlayPage />
@@ -153,6 +153,40 @@ describe("PlayPage tests", () => {
     ).toEqual({ gameId: 1 });
   });
 
+  test("keeps different games' herds in separate caches", async () => {
+    axiosMock
+      .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+      .reply(200, [{ id: 8, numCows: 4, health: 72 }]);
+    const view = renderPage();
+    expect(await screen.findByText("Herd #8")).toBeInTheDocument();
+    mockParams = { gameId: 0 };
+    axiosMock
+      .onGet("/api/farmer/forcurrentuser", { params: { gameId: 0 } })
+      .reply(200, { ...defaultFarmer, gameId: 0 });
+    axiosMock.onGet("/api/game/plus", { params: { id: 0 } }).reply(200, {
+      ...defaultGamePlus,
+      game: { ...defaultGamePlus.game, id: 0 },
+    });
+    axiosMock
+      .onGet("/api/herds/forcurrentuser", { params: { gameId: 0 } })
+      .reply(200, [{ id: 9, numCows: 6, health: 88 }]);
+    view.rerender(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PlayPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("Herd #9")).toBeInTheDocument();
+    expect(screen.queryByText("Herd #8")).not.toBeInTheDocument();
+    expect(screen.getByText("Total cows in herds: 6")).toBeInTheDocument();
+    expect(
+      axiosMock.history.get
+        .filter((call) => call.url === "/api/herds/forcurrentuser")
+        .map((call) => call.params.gameId),
+    ).toContain(0);
+  });
+
   test("shows a loading state until the herd request completes", async () => {
     let respond;
     axiosMock
@@ -178,6 +212,7 @@ describe("PlayPage tests", () => {
   });
 
   test("can retry a failed herd request", async () => {
+    queryClient.setDefaultOptions({ queries: { retry: 2, retryDelay: 0 } });
     axiosMock
       .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
       .reply(500, {});
@@ -188,6 +223,11 @@ describe("PlayPage tests", () => {
     axiosMock
       .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
       .reply(200, [{ id: 9, numCows: 2, health: 80 }]);
+    expect(
+      axiosMock.history.get.filter(
+        (call) => call.url === "/api/herds/forcurrentuser",
+      ),
+    ).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Herd #9")).toBeInTheDocument();
     expect(
@@ -223,20 +263,30 @@ describe("PlayPage tests", () => {
   );
 
   test("refreshes herd health while the page stays open", async () => {
-    renderPage();
-    expect(
-      await screen.findByText("You have no herds yet."),
-    ).toBeInTheDocument();
-    axiosMock
-      .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
-      .reply(200, [{ id: 5, numCows: 3, health: 41 }]);
-    await waitFor(
-      () => {
-        expect(screen.getByText("41.00%")).toBeInTheDocument();
-      },
-      { timeout: 12000 },
-    );
-  }, 15000);
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        renderPage();
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      expect(screen.getByText("You have no herds yet.")).toBeInTheDocument();
+      axiosMock
+        .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+        .reply(200, [{ id: 5, numCows: 3, health: 41 }]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10000);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(screen.getByText("41.00%")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   test("does not request or display herds for a game the user has not joined", async () => {
     setupDefaultMocks({

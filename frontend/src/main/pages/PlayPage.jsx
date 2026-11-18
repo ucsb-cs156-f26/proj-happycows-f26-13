@@ -123,6 +123,7 @@ export default function PlayPage() {
   } = useBackend(
     herdsQueryKey,
     {
+      // Stryker disable next-line StringLiteral: Axios treats an empty method as GET too.
       method: "GET",
       url: "/api/herds/forcurrentuser",
       params: { gameId },
@@ -130,6 +131,7 @@ export default function PlayPage() {
     undefined,
     {
       enabled: Boolean(allowed && farmer),
+      retry: false,
       // Keep daily health updates visible while the play page is open.
       refetchInterval: 10000,
     },

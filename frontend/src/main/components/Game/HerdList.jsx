@@ -8,7 +8,7 @@ export default function HerdList({ herds = [], isLoading, isError, onRetry }) {
   } else if (isError) {
     content = (
       <Alert variant="danger">
-        Unable to load your herds.{" "}
+        <p>Unable to load your herds.</p>
         <Button variant="outline-danger" onClick={() => onRetry()}>
           Retry
         </Button>
