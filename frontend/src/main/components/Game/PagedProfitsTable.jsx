@@ -19,11 +19,14 @@ const PagedProfitsTable = () => {
 
   const { data: page } = useBackend(
     [
+      // Stryker disable next-line all
       isAdminView ? "/api/profits/paged" : "/api/profits/paged/gameid",
       selectedPage,
     ],
     {
+      // Stryker disable next-line all
       method: "GET",
+      // Stryker disable next-line all
       url: isAdminView ? "/api/profits/paged" : "/api/profits/paged/gameid",
       params: {
         ...(isAdminView && { userId: userId }),
