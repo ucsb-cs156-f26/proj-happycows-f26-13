@@ -14,10 +14,15 @@ const ManageCowsModal = ({
   onSell,
 }) => {
   const handleInputChange = (e) => {
-    if (e.target.value < 0) {
+    const value = e.target.value;
+    if (value < 0) {
       toast.warn(`Warning: You cannot ${message} a negative number of cows!`);
+    } else if (!Number.isInteger(Number(value))) {
+      toast.warn(
+        `Warning: You cannot ${message} a fractional number of cows! Please enter a whole number.`,
+      );
     }
-    setNumber(e.target.value);
+    setNumber(value);
   };
 
   const handleSubmit = (e) => {
@@ -25,6 +30,10 @@ const ManageCowsModal = ({
     if (number < 0) {
       window.alert(
         `You cannot ${message} a negative number of cows! Please enter a non-negative number.`,
+      );
+    } else if (!Number.isInteger(Number(number))) {
+      window.alert(
+        `You cannot ${message} a fractional number of cows! Please enter a whole number.`,
       );
     } else {
       if (message.includes("buy")) {

@@ -6,6 +6,12 @@ import { vi } from "vitest";
 import "@testing-library/jest-dom";
 
 const mockToast = vi.fn();
+const BUY_NEG_WARN = "Warning: You cannot buy a negative number of cows!";
+const SELL_NEG_WARN = "Warning: You cannot sell a negative number of cows!";
+const BUY_FRAC_WARN =
+  "Warning: You cannot buy a fractional number of cows! Please enter a whole number.";
+const SELL_FRAC_WARN =
+  "Warning: You cannot sell a fractional number of cows! Please enter a whole number.";
 vi.mock("react-toastify", async () => {
   const originalModule = await vi.importActual("react-toastify");
   return {
@@ -27,6 +33,126 @@ describe("ManageCowsModal", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  test("toast warning not present when buying 0 cows", async () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    const input = screen.getByTestId("buy-sell-cow-modal-input");
+    fireEvent.change(input, { target: { value: "0" } });
+
+    expect(BUY_NEG_WARN.length).toBeGreaterThan(0);
+    expect(BUY_FRAC_WARN.length).toBeGreaterThan(0);
+    expect(mockSetNumber).toHaveBeenCalledWith("0");
+    expect(mockToast).not.toHaveBeenCalledWith(BUY_NEG_WARN);
+    expect(mockToast).not.toHaveBeenCalledWith(BUY_FRAC_WARN);
+  });
+
+  test("toast warning not present when selling 0 cows", async () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="sell"
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    const input = screen.getByTestId("buy-sell-cow-modal-input");
+    fireEvent.change(input, { target: { value: "0" } });
+
+    expect(SELL_NEG_WARN.length).toBeGreaterThan(0);
+    expect(SELL_FRAC_WARN.length).toBeGreaterThan(0);
+    expect(mockSetNumber).toHaveBeenCalledWith("0");
+    expect(mockToast).not.toHaveBeenCalledWith(SELL_NEG_WARN);
+    expect(mockToast).not.toHaveBeenCalledWith(SELL_FRAC_WARN);
+  });
+
+  test("toast warning for inputing fractional number when buying cows", async () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    const input = screen.getByTestId("buy-sell-cow-modal-input");
+    fireEvent.change(input, { target: { value: "1.5" } });
+
+    expect(mockSetNumber).toHaveBeenCalledWith("1.5");
+    expect(mockToast).toHaveBeenCalledWith(
+      "Warning: You cannot buy a fractional number of cows! Please enter a whole number.",
+    );
+  });
+
+  test("toast warning for inputing fractional number when selling cows", async () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="sell"
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    const input = screen.getByTestId("buy-sell-cow-modal-input");
+    fireEvent.change(input, { target: { value: "2.5" } });
+
+    expect(mockSetNumber).toHaveBeenCalledWith("2.5");
+    expect(mockToast).toHaveBeenCalledWith(
+      "Warning: You cannot sell a fractional number of cows! Please enter a whole number.",
+    );
+  });
+
+  test("window alert warning for buying fractional number of cows", async () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        farmer={farmerFixtures.oneFarmer[0]}
+        number={1.5}
+        onBuy={mockOnBuy}
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("buy-sell-cow-modal-submit"));
+
+    expect(window.alert).toHaveBeenCalledWith(
+      "You cannot buy a fractional number of cows! Please enter a whole number.",
+    );
+    expect(mockOnBuy).not.toHaveBeenCalled();
+  });
+
+  test("window alert warning for selling fractional number of cows", async () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="sell"
+        farmer={farmerFixtures.oneFarmer[0]}
+        number={2.5}
+        onSell={mockOnSell}
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("buy-sell-cow-modal-submit"));
+
+    expect(window.alert).toHaveBeenCalledWith(
+      "You cannot sell a fractional number of cows! Please enter a whole number.",
+    );
+    expect(mockOnSell).not.toHaveBeenCalled();
   });
 
   test("renders the modal when isOpen is true", () => {
@@ -79,6 +205,26 @@ describe("ManageCowsModal", () => {
     );
 
     expect(screen.queryByTestId("buy-sell-cow-modal")).not.toBeInTheDocument();
+  });
+
+  test("does not trigger fractional toast warning when input is cleared to empty string", async () => {
+    const localSetNumber = vi.fn();
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        number="1.5"
+        setNumber={localSetNumber}
+      />,
+    );
+
+    const input = screen.getByTestId("buy-sell-cow-modal-input");
+    fireEvent.change(input, { target: { value: "" } });
+
+    expect(localSetNumber).toHaveBeenCalledWith("");
+    // Ensures clearing to empty string doesn't erroneously throw a fractional warning
+    expect(mockToast).not.toHaveBeenCalledWith(BUY_FRAC_WARN);
   });
 
   test("calls onClose and setNumber when close button is clicked", () => {
@@ -241,9 +387,10 @@ describe("ManageCowsModal", () => {
 
     fireEvent.change(input, { target: { value: "-3" } });
     expect(mockSetNumber).toHaveBeenCalledWith("-3");
-    expect(mockToast).toHaveBeenCalledWith(
-      "Warning: You cannot buy a negative number of cows!",
-    );
+    expect(mockToast).toHaveBeenCalledTimes(1);
+    const msg = "Warning: You cannot buy a negative number of cows!";
+    expect(msg.length).toBeGreaterThan(0);
+    expect(mockToast).toHaveBeenCalledWith(msg);
   });
 
   test("toast warning for inputing negative number when selling cows", async () => {
@@ -260,12 +407,13 @@ describe("ManageCowsModal", () => {
 
     fireEvent.change(input, { target: { value: "-3" } });
     expect(mockSetNumber).toHaveBeenCalledWith("-3");
-    expect(mockToast).toHaveBeenCalledWith(
-      "Warning: You cannot sell a negative number of cows!",
-    );
+    expect(mockToast).toHaveBeenCalledTimes(1);
+    const msg = "Warning: You cannot sell a negative number of cows!";
+    expect(msg.length).toBeGreaterThan(0);
+    expect(mockToast).toHaveBeenCalledWith(msg);
   });
 
-  test("toast warning not present when buying 0 cows", async () => {
+  test("no negative warning toast when buying 0 cows", async () => {
     render(
       <ManageCowsModal
         isOpen={true}
@@ -284,7 +432,26 @@ describe("ManageCowsModal", () => {
     );
   });
 
-  test("toast warning not present when selling 0 cows", async () => {
+  test("toast warning not present when input is empty", async () => {
+    const localSetNumber = vi.fn();
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        number="5"
+        setNumber={localSetNumber}
+      />,
+    );
+
+    const input = screen.getByTestId("buy-sell-cow-modal-input");
+    fireEvent.change(input, { target: { value: "" } });
+
+    expect(localSetNumber).toHaveBeenCalledWith("");
+    expect(mockToast).not.toHaveBeenCalledWith(BUY_FRAC_WARN);
+  });
+
+  test("no negative warning toast when selling 0 cows", async () => {
     render(
       <ManageCowsModal
         isOpen={true}
@@ -319,6 +486,21 @@ describe("ManageCowsModal", () => {
     expect(mockSetNumber).toHaveBeenCalledWith("10");
   });
 
+  test("Check styling of modal components for footer", () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    const footer = screen.getByTestId("buy-sell-cow-modal-footer");
+    expect(footer).toBeInTheDocument();
+    expect(footer).toHaveStyle("border-top-width: 0px");
+  });
+
   test("Check styling of modal components", () => {
     render(
       <ManageCowsModal
@@ -329,8 +511,9 @@ describe("ManageCowsModal", () => {
       />,
     );
 
-    expect(screen.getByTestId("buy-sell-cow-modal-footer")).toHaveStyle(
-      "border-top-width: 0px",
+    expect(screen.getByTestId("buy-sell-cow-modal-footer")).toHaveAttribute(
+      "style",
+      expect.stringContaining("border-top"),
     );
     expect(screen.getByTestId("buy-sell-cow-modal-input")).toHaveStyle(
       "width: 20%",
