@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import Profits from "main/components/Game/Profits";
 import farmerFixtures from "fixtures/farmerFixtures";
+import { MemoryRouter } from "react-router";
 
 import { QueryClient, QueryClientProvider } from "react-query";
 
@@ -9,7 +10,9 @@ describe("Profits tests", () => {
     const queryClient = new QueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <Profits farmer={farmerFixtures.oneFarmer[0]} />
+        <MemoryRouter>
+          <Profits farmer={farmerFixtures.oneFarmer[0]} />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
     await waitFor(() => {
