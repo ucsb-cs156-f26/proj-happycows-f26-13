@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import axios from "axios";
@@ -96,6 +102,9 @@ describe("PlayPage tests", () => {
       .reply(() => [200, currentAnnouncements]);
 
     axiosMock.onGet("/api/profits/all/gameid").reply(200, []);
+    axiosMock
+      .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+      .reply(200, []);
 
     axiosMock.onPut("/api/farmer/sell").reply(200, farmerResponse.body);
     axiosMock.onPut("/api/farmer/buy").reply(200, farmerResponse.body);
@@ -125,6 +134,127 @@ describe("PlayPage tests", () => {
     currentAnnouncements = [];
     mockParams = { gameId: 1 };
     setupDefaultMocks();
+  });
+
+  test("loads herds for the current game", async () => {
+    axiosMock
+      .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+      .reply(200, [{ id: 8, numCows: 4, health: 72.5 }]);
+    renderPage();
+    expect(
+      await screen.findByText("Herd #8", {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Total cows in herds: 4")).toBeInTheDocument();
+    expect(screen.getByText("72.50%")).toBeInTheDocument();
+    expect(
+      axiosMock.history.get.find(
+        (call) => call.url === "/api/herds/forcurrentuser",
+      ).params,
+    ).toEqual({ gameId: 1 });
+  });
+
+  test("shows a loading state until the herd request completes", async () => {
+    let respond;
+    axiosMock
+      .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            respond = resolve;
+          }),
+      );
+    renderPage();
+    expect(await screen.findByText("Loading herds...")).toBeInTheDocument();
+    expect(
+      screen.queryByText("You have no herds yet."),
+    ).not.toBeInTheDocument();
+    await waitFor(() => expect(respond).toBeTypeOf("function"));
+    await act(async () => {
+      respond([200, []]);
+    });
+    expect(
+      await screen.findByText("You have no herds yet."),
+    ).toBeInTheDocument();
+  });
+
+  test("can retry a failed herd request", async () => {
+    axiosMock
+      .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+      .reply(500, {});
+    renderPage();
+    expect(
+      await screen.findByText("Unable to load your herds."),
+    ).toBeInTheDocument();
+    axiosMock
+      .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+      .reply(200, [{ id: 9, numCows: 2, health: 80 }]);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("Herd #9")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Unable to load your herds."),
+    ).not.toBeInTheDocument();
+  });
+
+  test.each(["buy", "sell"])(
+    "refreshes herds and money after %s",
+    async (action) => {
+      axiosMock
+        .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+        .reply(200, [{ id: 1, numCows: 2, health: 80 }]);
+      renderPage();
+      expect(
+        await screen.findByText("Total cows in herds: 2"),
+      ).toBeInTheDocument();
+      axiosMock
+        .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+        .reply(200, [{ id: 1, numCows: 3, health: 90 }]);
+      axiosMock
+        .onGet("/api/farmer/forcurrentuser", { params: { gameId: 1 } })
+        .reply(200, { ...defaultFarmer, totalWealth: 123 });
+      fireEvent.click(screen.getByTestId(`${action}-cow-button`));
+      fireEvent.click(await screen.findByTestId("buy-sell-cow-modal-submit"));
+      expect(
+        await screen.findByText("Total cows in herds: 3"),
+      ).toBeInTheDocument();
+      expect(
+        await screen.findByText(/Total Wealth: \$123.00/),
+      ).toBeInTheDocument();
+    },
+  );
+
+  test("refreshes herd health while the page stays open", async () => {
+    renderPage();
+    expect(
+      await screen.findByText("You have no herds yet."),
+    ).toBeInTheDocument();
+    axiosMock
+      .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+      .reply(200, [{ id: 5, numCows: 3, health: 41 }]);
+    await waitFor(
+      () => {
+        expect(screen.getByText("41.00%")).toBeInTheDocument();
+      },
+      { timeout: 12000 },
+    );
+  }, 15000);
+
+  test("does not request or display herds for a game the user has not joined", async () => {
+    setupDefaultMocks({
+      currentUser: {
+        ...apiCurrentUserFixtures.userOnly,
+        user: { ...apiCurrentUserFixtures.userOnly.user, game: [] },
+      },
+    });
+    renderPage();
+    expect(
+      await screen.findByText("You have yet to join this game!"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("HerdList")).not.toBeInTheDocument();
+    expect(
+      axiosMock.history.get.filter(
+        (call) => call.url === "/api/herds/forcurrentuser",
+      ),
+    ).toHaveLength(0);
   });
 
   test("renders without crashing", async () => {

@@ -6,6 +6,8 @@ import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
 import GameOverview from "main/components/Game/GameOverview";
 import GamePlay from "main/components/Game/GamePlay";
 import FarmStats from "main/components/Game/FarmStats";
+import HerdList from "main/components/Game/HerdList";
+import { useQueryClient } from "react-query";
 import ManageCows from "main/components/Game/ManageCows";
 import Profits from "main/components/Game/Profits";
 import { useBackend, useBackendMutation } from "main/utils/useBackend";
@@ -17,6 +19,7 @@ import ManageCowsModal from "main/components/Game/ManageCowsModal";
 
 export default function PlayPage() {
   const { gameId } = useParams();
+  const queryClient = useQueryClient();
   const { data: currentUser } = useCurrentUser();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [message, setMessage] = useState();
@@ -111,6 +114,29 @@ export default function PlayPage() {
   const notallowed = gamePlusExists && !matched && !deniedAccess;
   const hidden = gamePlusExists && gamePlus.game.hidden;
 
+  const herdsQueryKey = [`/api/herds/forcurrentuser?gameId=${gameId}`];
+  const {
+    data: herds,
+    isLoading: herdsLoading,
+    isError: herdsError,
+    refetch: refetchHerds,
+  } = useBackend(
+    herdsQueryKey,
+    {
+      method: "GET",
+      url: "/api/herds/forcurrentuser",
+      params: { gameId },
+    },
+    undefined,
+    {
+      enabled: Boolean(allowed && farmer),
+      // Keep daily health updates visible while the play page is open.
+      refetchInterval: 10000,
+    },
+  );
+
+  const refreshHerds = () => queryClient.invalidateQueries(herdsQueryKey);
+
   // Stryker disable all
   const { data: farmerProfits } = useBackend(
     [`/api/profits/all/gameid?gameId=${gameId}`],
@@ -137,16 +163,16 @@ export default function PlayPage() {
   // Stryker restore all
 
   // Stryker disable all
-  const mutationbuy = useBackendMutation(objectToAxiosParamsBuy, null, [
-    `/api/farmer/forcurrentuser?gameId=${gameId}`,
-  ]);
+  const mutationbuy = useBackendMutation(
+    objectToAxiosParamsBuy,
+    { onSuccess: refreshHerds },
+    [`/api/farmer/forcurrentuser?gameId=${gameId}`],
+  );
   // Stryker restore all
 
   const onBuy = (farmer, numCows) => {
     mutationbuy.mutate(farmer, numCows);
   };
-
-  const onSuccessSell = () => {};
 
   // Stryker disable all
   const objectToAxiosParamsSell = (newFarmer) => ({
@@ -163,7 +189,7 @@ export default function PlayPage() {
   // Stryker disable all
   const mutationsell = useBackendMutation(
     objectToAxiosParamsSell,
-    { onSuccess: onSuccessSell },
+    { onSuccess: refreshHerds },
     [`/api/farmer/forcurrentuser?gameId=${gameId}`],
   );
   // Stryker restore all
@@ -256,6 +282,14 @@ export default function PlayPage() {
                 onSell={onSell}
               />
             </CardGroup>
+          )}
+          {allowed && !!farmer && (
+            <HerdList
+              herds={herds}
+              isLoading={herdsLoading}
+              isError={herdsError}
+              onRetry={refetchHerds}
+            />
           )}
         </Container>
       </BasicLayout>
