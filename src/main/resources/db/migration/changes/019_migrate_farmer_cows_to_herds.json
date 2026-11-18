@@ -2,7 +2,7 @@
   "databaseChangeLog": [
     {
       "changeSet": {
-        "id": "018-migrate-farmer-cows-to-herds",
+        "id": "019-migrate-farmer-cows-to-herds",
         "author": "bt",
         "preConditions": [
           { "onFail": "MARK_RAN" },

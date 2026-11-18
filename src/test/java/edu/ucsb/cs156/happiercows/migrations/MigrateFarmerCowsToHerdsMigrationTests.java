@@ -18,7 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class MigrateFarmerCowsToHerdsMigrationTests {
 
     private static final String CHANGE_SET_RESOURCE =
-            "db/migration/changes/018_migrate_farmer_cows_to_herds.json";
+            "db/migration/changes/019_migrate_farmer_cows_to_herds.json";
 
     private String extractSql() throws Exception {
         ObjectMapper mapper = new ObjectMapper();
@@ -36,7 +36,7 @@ public class MigrateFarmerCowsToHerdsMigrationTests {
         String sql = extractSql();
 
         try (Connection conn = DriverManager.getConnection(
-                "jdbc:h2:mem:migration018test_" + System.identityHashCode(this))) {
+                "jdbc:h2:mem:migration019test_" + System.identityHashCode(this))) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("CREATE TABLE farmer (user_id BIGINT, game_id BIGINT, "
                         + "num_of_cows INT, cow_health DOUBLE PRECISION, PRIMARY KEY (game_id, user_id))");

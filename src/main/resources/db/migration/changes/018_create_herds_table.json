@@ -2,7 +2,7 @@
   "databaseChangeLog": [
     {
       "changeSet": {
-        "id": "017-create-herds-table",
+        "id": "018-create-herds-table",
         "author": "bt",
         "preConditions": [
           { "onFail": "MARK_RAN" },
