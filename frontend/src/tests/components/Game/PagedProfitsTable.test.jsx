@@ -616,4 +616,105 @@ describe("PagedProfitsTable tests", () => {
 
     useMemoSpy.mockRestore();
   });
+
+  test("uses correct method and refetchInterval in useBackend options", async () => {
+    axiosMock
+      .onGet("/api/profits/paged/gameid")
+      .reply(200, pagedProfitsFixtures.onePage);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PagedProfitsTable />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByTestId(`${testId}-cell-row-0-col-amount`);
+
+    expect(axiosMock.history.get[0].method).toBe("get");
+    // Strictly assert the non-empty gameid string literal to kill the empty string mutant
+    expect(axiosMock.history.get[0].url).toBe("/api/profits/paged/gameid");
+  });
+
+  test("uses exact admin endpoint string when in admin view", async () => {
+    useParams.mockReturnValue({ gameId: "7", userId: "42" });
+    axiosMock
+      .onGet("/api/profits/paged")
+      .reply(200, pagedProfitsFixtures.onePage);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PagedProfitsTable />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByTestId(`${testId}-cell-row-0-col-amount`);
+
+    // Explicitly targets the admin URL string literal to kill the empty string mutant
+    expect(axiosMock.history.get[0].url).toBe("/api/profits/paged");
+  });
+
+  test("calls useBackend with correct refetchInterval option", async () => {
+    const useBackendModule = await import("main/utils/useBackend");
+    const useBackendSpy = vi.spyOn(useBackendModule, "useBackend");
+
+    axiosMock
+      .onGet("/api/profits/paged/gameid")
+      .reply(200, pagedProfitsFixtures.onePage);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PagedProfitsTable />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByTestId(`${testId}-cell-row-0-col-amount`);
+
+    // Kills the ObjectLiteral { refetchInterval: ... } -> {} mutant
+    const callArgs = useBackendSpy.mock.calls[0];
+    expect(callArgs[3]).toEqual({ refetchInterval: 5000 });
+
+    useBackendSpy.mockRestore();
+  });
+
+  test("uses exact admin endpoint URL string when userId is present", async () => {
+    useParams.mockReturnValue({ gameId: "7", userId: "99" });
+    axiosMock
+      .onGet("/api/profits/paged")
+      .reply(200, pagedProfitsFixtures.onePage);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PagedProfitsTable />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByTestId(`${testId}-cell-row-0-col-amount`);
+    expect(axiosMock.history.get[0].url).toBe("/api/profits/paged");
+  });
+
+  test("uses exact gameid endpoint URL string when userId is undefined", async () => {
+    useParams.mockReturnValue({ gameId: "5", userId: undefined });
+    axiosMock
+      .onGet("/api/profits/paged/gameid")
+      .reply(200, pagedProfitsFixtures.onePage);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PagedProfitsTable />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByTestId(`${testId}-cell-row-0-col-amount`);
+    expect(axiosMock.history.get[0].url).toBe("/api/profits/paged/gameid");
+  });
 });
