@@ -30,6 +30,8 @@ import edu.ucsb.cs156.happiercows.services.CourseAccessService;
 import edu.ucsb.cs156.happiercows.services.FarmerActivityService;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,6 +40,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.transaction.annotation.Transactional;
 
 @Tag(name = "User Game")
 @RequestMapping("/api/farmer")
@@ -138,12 +142,21 @@ public class FarmerController extends ApiController {
         return ResponseEntity.ok().body(body);
     }
 
-  @Operation(summary = "Sell a cow, totalWealth updated")
+  /**
+   * Sells cows from specific herds. The request body maps each herd id to the
+   * number of cows to sell from that herd, e.g. {"12": 3, "15": 1}. Every herd
+   * must belong to the current user in this game, and each count must be
+   * between 0 and the number of cows in that herd. Each cow sells for the cow
+   * price times its herd's health (as a percentage), minus the selling fee.
+   * Herds that reach 0 cows are removed.
+   */
+  @Operation(summary = "Sell cows from specific herds, totalWealth updated")
   @PreAuthorize("hasRole('ROLE_USER')")
   @PutMapping("/sell")
+  @Transactional
   public ResponseEntity<String> putFarmerByIdSell(
           @Parameter(name="gameId") @RequestParam Long gameId,
-          @Parameter(name="numCows") @RequestParam int numCows) throws NoCowsException, JsonProcessingException {
+          @RequestBody Map<Long, Integer> herdCounts) throws NoCowsException, InvalidNumberOfCowsException, JsonProcessingException {
         User u = getCurrentUser().getUser();
         Long userId = u.getId();
 
@@ -160,21 +173,54 @@ public class FarmerController extends ApiController {
         .orElseThrow(
             () -> new EntityNotFoundException(Farmer.class, "gameId", gameId, "userId", userId));
 
+        // Only the current user's herds in this game can be sold from.
+        Map<Long, Herd> herdsById = new HashMap<>();
+        for (Herd herd : herdRepository.findByGameIdAndUserId(gameId, userId)) {
+          herdsById.put(herd.getId(), herd);
+        }
 
-        if(farmer.getNumOfCows() >= numCows ){
-          double cowValue = game.getCowPrice() * farmer.getCowHealth() / 100
+        // Validate every requested count before changing anything.
+        int totalCows = 0;
+        double totalValue = 0;
+        for (Map.Entry<Long, Integer> entry : herdCounts.entrySet()) {
+          Herd herd = herdsById.get(entry.getKey());
+          if (herd == null) {
+            throw new EntityNotFoundException(Herd.class, entry.getKey());
+          }
+          Integer count = entry.getValue();
+          if (count == null || count < 0) {
+            throw new InvalidNumberOfCowsException("You cannot sell a negative number of cows!");
+          }
+          if (count > herd.getNumCows()) {
+            throw new NoCowsException("You do not have enough cows in that herd to sell!");
+          }
+          double cowValue = game.getCowPrice() * herd.getHealth() / 100
               - game.getSellingFee();
-          farmer.setTotalWealth(farmer.getTotalWealth() + (cowValue * numCows));
-          farmer.setNumOfCows(farmer.getNumOfCows() - numCows);
-          farmer.setCowsSold(farmer.getCowsSold() + numCows);
+          totalCows += count;
+          totalValue += cowValue * count;
         }
-        else{
-          throw new NoCowsException("You do not have enough cows to sell!");
+        if (totalCows < 1) {
+          throw new InvalidNumberOfCowsException("You must sell at least 1 cow!");
         }
+
+        for (Map.Entry<Long, Integer> entry : herdCounts.entrySet()) {
+          Herd herd = herdsById.get(entry.getKey());
+          int remaining = herd.getNumCows() - entry.getValue();
+          if (remaining == 0) {
+            herdRepository.delete(herd);
+          } else if (remaining < herd.getNumCows()) {
+            herd.setNumCows(remaining);
+            herdRepository.save(herd);
+          }
+        }
+
+        farmer.setTotalWealth(farmer.getTotalWealth() + totalValue);
+        farmer.setNumOfCows(farmer.getNumOfCows() - totalCows);
+        farmer.setCowsSold(farmer.getCowsSold() + totalCows);
         farmerRepository.save(farmer);
 
         farmerActivityService.recordActivityIfStudentMatch(
-            u, game, farmer, FarmerActivity.ACTIVITY_TYPE_SELL, numCows);
+            u, game, farmer, FarmerActivity.ACTIVITY_TYPE_SELL, totalCows);
 
         String body = mapper.writeValueAsString(farmer);
         return ResponseEntity.ok().body(body);

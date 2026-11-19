@@ -55,12 +55,15 @@ public class FarmerWebIT extends WebTestCase {
 
         // Click sell cow button
         page.getByTestId("sell-cow-button").click();
-        page.getByTestId("buy-sell-cow-modal-input").fill("10");
-        page.getByTestId("buy-sell-cow-modal-submit").click();
+        // The 42 cows bought above form one herd; sell 10 of them
+        page.locator("[data-testid^='sell-herds-modal-input-']").first().fill("10");
+        page.getByTestId("sell-herds-modal-submit").click();
         // Check that total wealth is updated
         assertThat(page.getByText("6800")).isVisible();
         // Check that cow count is updated
         assertThat(page.getByText("Total Cows Sold: 10")).isVisible();
+        // Check that the herd now has 32 cows
+        assertThat(page.getByText("Total cows in herds: 32")).isVisible();
 
     }
     
