@@ -13,7 +13,10 @@ import Profits from "main/components/Game/Profits";
 import { useBackend, useBackendMutation } from "main/utils/useBackend";
 import { hasRole } from "main/utils/currentUser";
 import { useCurrentUser } from "main/utils/currentUser";
-import { getPlayPageBackground } from "main/utils/playPageBackgroundUtils";
+import {
+  getPlayPageBackground,
+  PLAY_PAGE_GRASS_GREEN,
+} from "main/utils/playPageBackgroundUtils";
 import ChatPanel from "main/components/Chat/ChatPanel";
 import ManageCowsModal from "main/components/Game/ManageCowsModal";
 import SellHerdsModal from "main/components/Game/SellHerdsModal";
@@ -235,8 +238,15 @@ export default function PlayPage() {
   return (
     <div
       style={{
-        backgroundSize: "cover",
+        // The picture keeps its size at the top of the page; as the herd list
+        // grows, the page below it is filled with the same green as the grass
+        // at the bottom of the picture instead of zooming the picture in.
+        backgroundColor: PLAY_PAGE_GRASS_GREEN,
         backgroundImage: `url(${getPlayPageBackground(farmer?.cowHealth)})`,
+        backgroundSize: "100%", // full width, height keeps the picture's shape
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "center top",
+        minHeight: "100vh",
       }}
       data-testid="playpage-div"
     >

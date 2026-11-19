@@ -193,6 +193,42 @@ public class FarmerControllerTests extends ControllerTestCase {
 
     @WithMockUser(roles = {"USER"})
     @Test
+    public void test_BuyCow_updates_farm_health_to_weighted_average_of_herds() throws Exception {
+        Farmer origFarmer = getTestFarmer();
+        origFarmer.setNumOfCows(4);
+        origFarmer.setCowHealth(40);
+        Herd herd11 = testHerd(11L, 1, 10, origFarmer);
+        Herd herd12 = testHerd(12L, 3, 50, origFarmer);
+
+        when(farmerRepository.findByGameIdAndUserId(eq(1L), eq(1L))).thenReturn(Optional.of(origFarmer));
+        when(gameRepository.findById(eq(1L))).thenReturn(Optional.of(testGame));
+        when(herdRepository.findByGameIdAndUserId(eq(1L), eq(1L))).thenReturn(List.of(herd11, herd12));
+
+        // (1 * 10 + 3 * 50 + 2 * 100) / 6 cows = 60
+        Farmer updatedFarmer = getTestFarmer();
+        updatedFarmer.setNumOfCows(6);
+        updatedFarmer.setTotalWealth(300 - (testGame.getCowPrice() * 2));
+        updatedFarmer.setCowsBought(2);
+        updatedFarmer.setCowHealth(60);
+
+        MvcResult response = mockMvc.perform(put("/api/farmer/buy?gameId=1&numCows=2")
+                        .with(csrf()))
+                .andExpect(status().isOk()).andReturn();
+
+        verify(farmerRepository, times(1)).save(updatedFarmer);
+        verify(herdRepository, times(1)).save(
+                Herd.builder().farmer(updatedFarmer).herdNumber(1).numCows(2).health(100).build());
+        assertEquals(mapper.writeValueAsString(updatedFarmer), response.getResponse().getContentAsString());
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void test_averageHealth_with_no_herds_is_100() {
+        assertEquals(100.0, FarmerController.averageHealth(List.of()));
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
     public void test_BuyCow_zero_cows_rejected() throws Exception {
         MvcResult response = mockMvc.perform(put("/api/farmer/buy?gameId=1&numCows=0")
                         .with(csrf()))
@@ -636,6 +672,8 @@ public class FarmerControllerTests extends ControllerTestCase {
         updatedFarmer.setTotalWealth(300 + 27 + 8);
         updatedFarmer.setNumOfCows(5);
         updatedFarmer.setCowsSold(6);
+        // only herd 12 is left (5 cows at 50%), so that is the new average
+        updatedFarmer.setCowHealth(50);
 
         MvcResult response = performSell("1", "{\"11\": 3, \"12\": 2}", 200);
 
@@ -828,6 +866,7 @@ public class FarmerControllerTests extends ControllerTestCase {
 
         Farmer origFarmer = getTestFarmer();
         origFarmer.setNumOfCows(2);
+        origFarmer.setCowHealth(50);
         Herd herd11 = testHerd(11L, 2, 50, origFarmer);
 
         when(gameRepository.findById(eq(1L))).thenReturn(Optional.of(testGame));
@@ -839,6 +878,8 @@ public class FarmerControllerTests extends ControllerTestCase {
         updatedFarmer.setTotalWealth(300 + 2 * 5);
         updatedFarmer.setNumOfCows(0);
         updatedFarmer.setCowsSold(2);
+        // no cows left, so health goes back to 100 like the daily update does
+        updatedFarmer.setCowHealth(100);
 
         MvcResult response = performSell("1", "{\"11\": 2}", 200);
 
