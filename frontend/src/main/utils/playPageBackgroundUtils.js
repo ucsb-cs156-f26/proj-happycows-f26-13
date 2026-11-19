@@ -6,7 +6,7 @@ import BackgroundDead from "../../assets/PlayPageBackground-Dead.jpg";
 
 // The grass color along the bottom edge of every PlayPage background picture.
 // PlayPage fills the rest of the page with it below the picture.
-export const PLAY_PAGE_GRASS_GREEN = "rgb(94, 175, 118)";
+export const PLAY_PAGE_GRASS_GREEN = "#6aae76";
 
 // Picks the PlayPage background from the farmer's average cow health (the
 // same `farmer.cowHealth` value shown in FarmStats). The lower bound of each

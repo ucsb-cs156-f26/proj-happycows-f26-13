@@ -526,7 +526,7 @@ describe("PlayPage tests", () => {
     const div = screen.getByTestId("playpage-div");
     // The picture stays its normal size at the top and grass green fills the
     // rest of the page, so a long herd list doesn't zoom the picture in.
-    expect(div.style.backgroundColor).toBe("rgb(94, 175, 118)");
+    expect(div.style.backgroundColor).toBe("rgb(106, 174, 118)");
     expect(div.style.backgroundSize).toBe("100%");
     expect(div.style.backgroundRepeat).toBe("no-repeat");
     expect(div.style.backgroundPosition).toBe("center top");
