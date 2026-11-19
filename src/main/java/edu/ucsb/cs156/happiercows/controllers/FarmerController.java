@@ -30,6 +30,7 @@ import edu.ucsb.cs156.happiercows.services.CourseAccessService;
 import edu.ucsb.cs156.happiercows.services.FarmerActivityService;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -132,9 +133,14 @@ public class FarmerController extends ApiController {
         else{
           throw new NotEnoughMoneyException("You need more money!");
         }
-        farmerRepository.save(farmer);
         int herdNumber = herdRepository.findMaxHerdNumber(gameId, userId) + 1;
-        herdRepository.save(Herd.builder().farmer(farmer).herdNumber(herdNumber).numCows(numCows).health(100).build());
+        Herd newHerd = Herd.builder().farmer(farmer).herdNumber(herdNumber).numCows(numCows).health(100).build();
+        List<Herd> herds = new ArrayList<>();
+        herdRepository.findByGameIdAndUserId(gameId, userId).forEach(herds::add);
+        herds.add(newHerd);
+        farmer.setCowHealth(averageHealth(herds));
+        farmerRepository.save(farmer);
+        herdRepository.save(newHerd);
 
         farmerActivityService.recordActivityIfStudentMatch(
             u, game, farmer, FarmerActivity.ACTIVITY_TYPE_BUY, numCows);
@@ -209,6 +215,7 @@ public class FarmerController extends ApiController {
           int remaining = herd.getNumCows() - entry.getValue();
           if (remaining == 0) {
             herdRepository.delete(herd);
+            herdsById.remove(herd.getId());
           } else if (remaining < herd.getNumCows()) {
             herd.setNumCows(remaining);
             herdRepository.save(herd);
@@ -218,6 +225,7 @@ public class FarmerController extends ApiController {
         farmer.setTotalWealth(farmer.getTotalWealth() + totalValue);
         farmer.setNumOfCows(farmer.getNumOfCows() - totalCows);
         farmer.setCowsSold(farmer.getCowsSold() + totalCows);
+        farmer.setCowHealth(averageHealth(herdsById.values()));
         farmerRepository.save(farmer);
 
         farmerActivityService.recordActivityIfStudentMatch(
@@ -228,6 +236,21 @@ public class FarmerController extends ApiController {
     }
 
     
+
+    /**
+     * The farmer's cow health shown in Farm Stats: the average health of their
+     * herds, weighted by the number of cows in each herd. A farmer with no
+     * cows has health 100, matching the daily health update.
+     */
+    static double averageHealth(Collection<Herd> herds) {
+        int cows = 0;
+        double totalHealth = 0;
+        for (Herd herd : herds) {
+            cows += herd.getNumCows();
+            totalHealth += herd.getHealth() * herd.getNumCows();
+        }
+        return cows > 0 ? totalHealth / cows : 100.0;
+    }
 
     @Operation(summary = "Get all user game for a specific game")
     @PreAuthorize("hasAnyRole('ROLE_USER', 'ROLE_ADMIN')")

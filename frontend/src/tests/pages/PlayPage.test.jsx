@@ -63,6 +63,7 @@ describe("PlayPage tests", () => {
     systemInfo = systemInfoFixtures.showingNeither,
     farmerResponse = { status: 200, body: defaultFarmer },
     gamePlus = defaultGamePlus,
+    herds = [],
     gameAll = [
       {
         id: 1,
@@ -104,7 +105,7 @@ describe("PlayPage tests", () => {
     axiosMock.onGet("/api/profits/all/gameid").reply(200, []);
     axiosMock
       .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
-      .reply(200, []);
+      .reply(200, herds);
 
     axiosMock.onPut("/api/farmer/sell").reply(200, farmerResponse.body);
     axiosMock.onPut("/api/farmer/buy").reply(200, farmerResponse.body);
@@ -307,6 +308,79 @@ describe("PlayPage tests", () => {
         await vi.advanceTimersByTimeAsync(1);
       });
       expect(screen.getByText("41.00%")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("refreshes Farm Stats and the cow picture after a background health update", async () => {
+    const farmerAt = (cowHealth) => ({
+      ...defaultFarmer,
+      cowHealth,
+      numOfCows: 3,
+      cowsBought: 3,
+      cowsSold: 0,
+      cowDeaths: 0,
+    });
+    setupDefaultMocks({
+      farmerResponse: { status: 200, body: farmerAt(100) },
+      herds: [{ id: 5, herdNumber: 1, numCows: 3, health: 100 }],
+    });
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        renderPage();
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      expect(screen.getByText("❤️ Cow Health: 100%")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("playpage-div").style.backgroundImage,
+      ).toContain("PlayPageBackground-Smiling");
+
+      // The daily health job runs while the page stays open: no buy, sell,
+      // or reload happens before the next poll.
+      axiosMock
+        .onGet("/api/farmer/forcurrentuser", { params: { gameId: 1 } })
+        .reply(200, farmerAt(10));
+      axiosMock
+        .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+        .reply(200, [{ id: 5, herdNumber: 1, numCows: 3, health: 10 }]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10000);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+
+      expect(screen.getByText("10.00%")).toBeInTheDocument();
+      expect(screen.getByText("❤️ Cow Health: 10%")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("playpage-div").style.backgroundImage,
+      ).toContain("PlayPageBackground-Dead");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("does not keep re-requesting the farmer after it fails to load", async () => {
+    setupDefaultMocks({ farmerResponse: { status: 500, body: {} } });
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        renderPage();
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30000);
+      });
+      expect(
+        axiosMock.history.get.filter(
+          (call) => call.url === "/api/farmer/forcurrentuser",
+        ),
+      ).toHaveLength(1);
     } finally {
       vi.useRealTimers();
     }
@@ -523,7 +597,13 @@ describe("PlayPage tests", () => {
     renderPage();
 
     const div = screen.getByTestId("playpage-div");
-    expect(div).toHaveStyle("background-size: cover");
+    // The picture stays its normal size at the top and grass green fills the
+    // rest of the page, so a long herd list doesn't zoom the picture in.
+    expect(div.style.backgroundColor).toBe("rgb(106, 174, 118)");
+    expect(div.style.backgroundSize).toBe("100%");
+    expect(div.style.backgroundRepeat).toBe("no-repeat");
+    expect(div.style.backgroundPosition).toBe("center top");
+    expect(div.style.minHeight).toBe("100vh");
     expect(div.style.backgroundImage).toContain(
       "/src/assets/PlayPageBackground.jpg",
     );
@@ -552,6 +632,59 @@ describe("PlayPage tests", () => {
       });
     },
   );
+
+  test("with herds at different health, the background follows the Farm Stats average", async () => {
+    // Herd #1 alone would be Dead and Herd #2 alone Smiling; the farm's
+    // average (shown in Farm Stats) is 60%, so the page uses Neutral.
+    setupDefaultMocks({
+      farmerResponse: {
+        status: 200,
+        body: {
+          ...defaultFarmer,
+          cowHealth: 60,
+          numOfCows: 3,
+          cowsBought: 3,
+          cowsSold: 0,
+          cowDeaths: 0,
+        },
+      },
+      herds: [
+        { id: 11, herdNumber: 1, numCows: 1, health: 20 },
+        { id: 12, herdNumber: 2, numCows: 2, health: 80 },
+      ],
+    });
+    renderPage();
+
+    expect(await screen.findByText("Herd #2")).toBeInTheDocument();
+    expect(screen.getByText("❤️ Cow Health: 60%")).toBeInTheDocument();
+    expect(screen.getByTestId("playpage-div").style.backgroundImage).toContain(
+      "PlayPageBackground-Neutral",
+    );
+  });
+
+  test("a farmer with no cows sees the page without crashing", async () => {
+    setupDefaultMocks({
+      farmerResponse: {
+        status: 200,
+        body: {
+          ...defaultFarmer,
+          cowHealth: 100,
+          numOfCows: 0,
+          cowsBought: 0,
+          cowsSold: 0,
+          cowDeaths: 0,
+        },
+      },
+    });
+    renderPage();
+
+    expect(
+      await screen.findByText("You have no herds yet."),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("playpage-div").style.backgroundImage).toContain(
+      "PlayPageBackground-Smiling",
+    );
+  });
 
   test("Chat toggle button opens and closes the ChatPanel", async () => {
     renderPage();
