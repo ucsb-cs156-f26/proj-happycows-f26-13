@@ -6,6 +6,7 @@ import { vi } from "vitest";
 import "@testing-library/jest-dom";
 
 const mockToast = vi.fn();
+const mockToastError = vi.fn();
 const BUY_NEG_WARN = "Warning: You cannot buy a negative number of cows!";
 const SELL_NEG_WARN = "Warning: You cannot sell a negative number of cows!";
 const BUY_FRAC_WARN =
@@ -20,6 +21,7 @@ vi.mock("react-toastify", async () => {
     toast: {
       ...originalModule.toast,
       warn: (message) => mockToast(message),
+      error: (message) => mockToastError(message),
     },
   };
 });
@@ -29,7 +31,6 @@ describe("ManageCowsModal", () => {
   const mockSetNumber = vi.fn();
   const mockOnBuy = vi.fn();
   const mockOnSell = vi.fn();
-  window.alert = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -113,7 +114,7 @@ describe("ManageCowsModal", () => {
     );
   });
 
-  test("window alert warning for buying fractional number of cows", async () => {
+  test("error toast for buying fractional number of cows", async () => {
     render(
       <ManageCowsModal
         isOpen={true}
@@ -128,13 +129,13 @@ describe("ManageCowsModal", () => {
 
     fireEvent.click(screen.getByTestId("buy-sell-cow-modal-submit"));
 
-    expect(window.alert).toHaveBeenCalledWith(
+    expect(mockToastError).toHaveBeenCalledWith(
       "You cannot buy a fractional number of cows! Please enter a whole number.",
     );
     expect(mockOnBuy).not.toHaveBeenCalled();
   });
 
-  test("window alert warning for selling fractional number of cows", async () => {
+  test("error toast for selling fractional number of cows", async () => {
     render(
       <ManageCowsModal
         isOpen={true}
@@ -149,7 +150,7 @@ describe("ManageCowsModal", () => {
 
     fireEvent.click(screen.getByTestId("buy-sell-cow-modal-submit"));
 
-    expect(window.alert).toHaveBeenCalledWith(
+    expect(mockToastError).toHaveBeenCalledWith(
       "You cannot sell a fractional number of cows! Please enter a whole number.",
     );
     expect(mockOnSell).not.toHaveBeenCalled();
@@ -281,7 +282,7 @@ describe("ManageCowsModal", () => {
     );
   });
 
-  test("does not call onBuy and alerts when buying 0 cows", async () => {
+  test("does not call onBuy and shows an error toast when buying 0 cows", async () => {
     render(
       <ManageCowsModal
         isOpen={true}
@@ -296,7 +297,7 @@ describe("ManageCowsModal", () => {
 
     fireEvent.click(screen.getByTestId("buy-sell-cow-modal-submit"));
 
-    expect(window.alert).toHaveBeenCalledWith("You must buy at least 1 cow.");
+    expect(mockToastError).toHaveBeenCalledWith("You must buy at least 1 cow.");
     expect(mockOnBuy).not.toHaveBeenCalled();
     expect(mockOnClose).not.toHaveBeenCalled();
   });
@@ -433,7 +434,7 @@ describe("ManageCowsModal", () => {
     );
   });
 
-  test("windows toolkit warning for buying negative cows", async () => {
+  test("error toast for buying negative cows", async () => {
     const number2 = -3;
 
     render(
@@ -450,12 +451,12 @@ describe("ManageCowsModal", () => {
 
     fireEvent.click(screen.getByTestId("buy-sell-cow-modal-submit"));
 
-    expect(window.alert).toHaveBeenCalledWith(
+    expect(mockToastError).toHaveBeenCalledWith(
       "You cannot buy a negative number of cows! Please enter a non-negative number.",
     );
   });
 
-  test("windows toolkit warning for selling negative cows", async () => {
+  test("error toast for selling negative cows", async () => {
     const number2 = -3;
 
     render(
@@ -472,7 +473,7 @@ describe("ManageCowsModal", () => {
 
     fireEvent.click(screen.getByTestId("buy-sell-cow-modal-submit"));
 
-    expect(window.alert).toHaveBeenCalledWith(
+    expect(mockToastError).toHaveBeenCalledWith(
       "You cannot sell a negative number of cows! Please enter a non-negative number.",
     );
   });
