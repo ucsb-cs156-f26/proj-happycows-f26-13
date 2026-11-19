@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Herd.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">happycows</a> &gt; <a href="index.source.html" class="el_package">edu.ucsb.cs156.happiercows.entities</a> &gt; <span class="el_source">Herd.java</span></div><h1>Herd.java</h1><pre class="source lang-java linenums">package edu.ucsb.cs156.happiercows.entities;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinColumns;
+import jakarta.persistence.ManyToOne;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Entity(name = &quot;herds&quot;)
+public class Herd {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private long id;
+
+    @ManyToOne
+    @JoinColumns({
+        @JoinColumn(name = &quot;user_id&quot;, referencedColumnName = &quot;user_id&quot;),
+        @JoinColumn(name = &quot;game_id&quot;, referencedColumnName = &quot;game_id&quot;)
+    })
+    @JsonIgnore
+    private Farmer farmer;
+
+    // Shown to players as &quot;Herd #1&quot;, &quot;Herd #2&quot;, ... Numbered separately for
+    // each farmer in each game, starting at 1, and never changes.
+    private int herdNumber;
+
+    private int numCows;
+
+    private double health;
+
+    @JsonInclude
+    public long getUserId() {
+<span class="fc" id="L47">        return farmer.getUserId();</span>
+    }
+
+    @JsonInclude
+    public long getGameId() {
+<span class="fc" id="L52">        return farmer.getGameId();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>
