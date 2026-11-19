@@ -1,13 +1,16 @@
 package edu.ucsb.cs156.happiercows.strategies;
 
 import edu.ucsb.cs156.happiercows.entities.GamePlus;
-import edu.ucsb.cs156.happiercows.entities.Farmer;
 
 public interface CowHealthUpdateStrategy {
 
+    /**
+     * Calculates the new health of a group of cows (a herd) from its current
+     * health and the total number of cows in the game.
+     */
     public double calculateNewCowHealth(
             GamePlus gamePlus,
-            Farmer uC,
+            double cowHealth,
             int totalCows
     );
 

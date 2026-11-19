@@ -133,7 +133,8 @@ public class FarmerController extends ApiController {
           throw new NotEnoughMoneyException("You need more money!");
         }
         farmerRepository.save(farmer);
-        herdRepository.save(Herd.builder().farmer(farmer).numCows(numCows).health(100).build());
+        int herdNumber = herdRepository.findMaxHerdNumber(gameId, userId) + 1;
+        herdRepository.save(Herd.builder().farmer(farmer).herdNumber(herdNumber).numCows(numCows).health(100).build());
 
         farmerActivityService.recordActivityIfStudentMatch(
             u, game, farmer, FarmerActivity.ACTIVITY_TYPE_BUY, numCows);

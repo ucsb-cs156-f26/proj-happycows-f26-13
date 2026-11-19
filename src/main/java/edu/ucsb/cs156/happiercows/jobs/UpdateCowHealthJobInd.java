@@ -1,11 +1,13 @@
 package edu.ucsb.cs156.happiercows.jobs;
 
 import java.util.Optional;
+import java.util.function.DoubleSupplier;
 
 import edu.ucsb.cs156.happiercows.entities.Game;
 import edu.ucsb.cs156.happiercows.entities.GamePlus;
 import edu.ucsb.cs156.happiercows.repositories.GameRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
+import edu.ucsb.cs156.happiercows.repositories.HerdRepository;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 import edu.ucsb.cs156.happiercows.services.GamePlusBuilderService;
 import edu.ucsb.cs156.jobs.services.JobContext;
@@ -25,6 +27,10 @@ public class UpdateCowHealthJobInd implements JobContextConsumer {
     @Getter
     private GamePlusBuilderService gamePlusBuilderService;
     @Getter
+    private HerdRepository herdRepository;
+    @Getter
+    private DoubleSupplier random;
+    @Getter
     private Long gameID;
 
     @Override
@@ -40,7 +46,7 @@ public class UpdateCowHealthJobInd implements JobContextConsumer {
                 return;
             }
             GamePlus gamePlus = gamePlusBuilderService.toGamePlus(gameUpdated);
-            UpdateCowHealthJob.runUpdateJobInGame(gameUpdated, gamePlus, gamePlusBuilderService, gameRepository, farmerRepository, ctx); 
+            UpdateCowHealthJob.runUpdateJobInGame(gameUpdated, gamePlus, gamePlusBuilderService, gameRepository, farmerRepository, herdRepository, random, ctx); 
             ctx.log("Cow health has been updated!");
         } else {
             ctx.log(String.format("No game found for id %d", gameID));

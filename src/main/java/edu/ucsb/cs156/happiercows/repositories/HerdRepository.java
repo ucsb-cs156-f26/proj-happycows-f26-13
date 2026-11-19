@@ -9,4 +9,7 @@ import org.springframework.stereotype.Repository;
 public interface HerdRepository extends CrudRepository<Herd, Long> {
     @Query("SELECT h FROM herds h WHERE h.farmer.game.id = :gameId AND h.farmer.user.id = :userId ORDER BY h.id")
     Iterable<Herd> findByGameIdAndUserId(Long gameId, Long userId);
+
+    @Query("SELECT COALESCE(MAX(h.herdNumber), 0) FROM herds h WHERE h.farmer.game.id = :gameId AND h.farmer.user.id = :userId")
+    int findMaxHerdNumber(Long gameId, Long userId);
 }

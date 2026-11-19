@@ -171,6 +171,8 @@ public class FarmerControllerTests extends ControllerTestCase {
 
         when(farmerRepository.findByGameIdAndUserId(eq(1L), eq(1L))).thenReturn(Optional.of(origFarmer));
         when(gameRepository.findById(eq(1L))).thenReturn(Optional.of(testGame));
+        // the farmer already has herds #1 and #2 in this game
+        when(herdRepository.findMaxHerdNumber(eq(1L), eq(1L))).thenReturn(2);
 
         // act
         MvcResult response = mockMvc.perform(put("/api/farmer/buy?gameId=1&numCows=2")
@@ -181,7 +183,7 @@ public class FarmerControllerTests extends ControllerTestCase {
         verify(farmerRepository, times(1)).findByGameIdAndUserId(eq(1L), eq(1L));
         verify(farmerRepository, times(1)).save(updateFarmer);
         verify(herdRepository, times(1)).save(
-                Herd.builder().farmer(updateFarmer).numCows(2).health(100).build());
+                Herd.builder().farmer(updateFarmer).herdNumber(3).numCows(2).health(100).build());
         verify(farmerActivityService, times(1)).recordActivityIfStudentMatch(
                 eq(currentUser), eq(testGame), eq(updateFarmer),
                 eq(FarmerActivity.ACTIVITY_TYPE_BUY), eq(2));

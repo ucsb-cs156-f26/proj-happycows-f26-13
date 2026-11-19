@@ -8,6 +8,8 @@ import edu.ucsb.cs156.happiercows.entities.Farmer;
 import edu.ucsb.cs156.jobs.entities.Job;
 import edu.ucsb.cs156.happiercows.repositories.GameRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
+import edu.ucsb.cs156.happiercows.repositories.HerdRepository;
+import edu.ucsb.cs156.happiercows.entities.Herd;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 import edu.ucsb.cs156.happiercows.services.GamePlusBuilderService;
 import edu.ucsb.cs156.jobs.services.JobContext;
@@ -45,6 +47,9 @@ public class UpdateCowHealthJobIndTests extends JobTestCase {
         
         @Mock
         GamePlusBuilderService gamePlusBuilderService;
+
+        @Mock
+        HerdRepository herdRepository;
 
         @Mock
         UpdateCowHealthJob updateCowHealthJob;
@@ -92,7 +97,7 @@ public class UpdateCowHealthJobIndTests extends JobTestCase {
 
         private void runUpdateCowHealthJob() throws Exception {
                 var updateCowHealthJobInd = new UpdateCowHealthJobInd(gameRepository, farmerRepository,
-                                userRepository, gamePlusBuilderService, 1L);
+                                userRepository, gamePlusBuilderService, herdRepository, () -> 0.5, 1L);
                 updateCowHealthJobInd.accept(ctx);
         }
 
@@ -124,8 +129,9 @@ public class UpdateCowHealthJobIndTests extends JobTestCase {
         when(gamePlusBuilderService.convertToGamePlus(eq(listOfGame))).thenReturn(listOfGamePlus);
         when(gamePlusBuilderService.toGamePlus(eq(game))).thenReturn(gamePlus);
         when(gameRepository.findById(eq(1L))).thenReturn(Optional.of(game));
+        when(herdRepository.findByGameIdAndUserId(game.getId(), 1L)).thenReturn(
+                List.of(Herd.builder().herdNumber(1).numCows(1).health(10.0).build()));
 
-        
 
         runUpdateCowHealthJob();
 
@@ -133,7 +139,8 @@ public class UpdateCowHealthJobIndTests extends JobTestCase {
                         Updating cow health...
                         Game test game, degradationRate: 1.0, effectiveCapacity: 100
                         User: Chris Gaucho, numCows: 1, cowHealth: 10.0
-                         old cow health: 10.0, new cow health: 100.0
+                         Herd #1: old health: 10.0, new health: 100.0, cows died: 0, cows left: 1
+                         new numCows: 1, new cowHealth: 100.0
                         Cow health has been updated!""";
 
         assertEquals(expected, job.getLog());
@@ -163,7 +170,7 @@ public class UpdateCowHealthJobIndTests extends JobTestCase {
     @Test
     void game_id_getter_returns_value_from_constructor() {
         UpdateCowHealthJobInd jobInd = new UpdateCowHealthJobInd(gameRepository, farmerRepository,
-                userRepository, gamePlusBuilderService, 17L);
+                userRepository, gamePlusBuilderService, herdRepository, () -> 0.5, 17L);
 
         assertEquals(17L, jobInd.getGameID());
     }

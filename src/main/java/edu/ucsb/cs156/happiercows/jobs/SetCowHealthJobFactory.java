@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import edu.ucsb.cs156.happiercows.repositories.GameRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
+import edu.ucsb.cs156.happiercows.repositories.HerdRepository;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 import edu.ucsb.cs156.jobs.services.JobContextConsumer;
 import lombok.extern.slf4j.Slf4j;
@@ -22,9 +23,12 @@ public class SetCowHealthJobFactory  {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private HerdRepository herdRepository;
+
     public JobContextConsumer create(Long gameID, double health) {
         log.info("gameRepository = " + gameRepository);
         log.info("farmerRepository = " + farmerRepository);
-        return new SetCowHealthJob(gameID, health, gameRepository, farmerRepository, userRepository);
+        return new SetCowHealthJob(gameID, health, gameRepository, farmerRepository, userRepository, herdRepository);
     }
 }

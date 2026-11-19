@@ -139,7 +139,7 @@ describe("PlayPage tests", () => {
   test("loads herds for the current game", async () => {
     axiosMock
       .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
-      .reply(200, [{ id: 8, numCows: 4, health: 72.5 }]);
+      .reply(200, [{ id: 8, herdNumber: 8, numCows: 4, health: 72.5 }]);
     renderPage();
     expect(
       await screen.findByText("Herd #8", {}, { timeout: 3000 }),
@@ -156,7 +156,7 @@ describe("PlayPage tests", () => {
   test("keeps different games' herds in separate caches", async () => {
     axiosMock
       .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
-      .reply(200, [{ id: 8, numCows: 4, health: 72 }]);
+      .reply(200, [{ id: 8, herdNumber: 8, numCows: 4, health: 72 }]);
     const view = renderPage();
     expect(await screen.findByText("Herd #8")).toBeInTheDocument();
     mockParams = { gameId: 0 };
@@ -169,7 +169,7 @@ describe("PlayPage tests", () => {
     });
     axiosMock
       .onGet("/api/herds/forcurrentuser", { params: { gameId: 0 } })
-      .reply(200, [{ id: 9, numCows: 6, health: 88 }]);
+      .reply(200, [{ id: 9, herdNumber: 9, numCows: 6, health: 88 }]);
     view.rerender(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
@@ -189,8 +189,8 @@ describe("PlayPage tests", () => {
         .map((query) => query.state.data),
     ).toEqual(
       expect.arrayContaining([
-        [{ id: 8, numCows: 4, health: 72 }],
-        [{ id: 9, numCows: 6, health: 88 }],
+        [{ id: 8, herdNumber: 8, numCows: 4, health: 72 }],
+        [{ id: 9, herdNumber: 9, numCows: 6, health: 88 }],
       ]),
     );
     expect(
@@ -235,7 +235,7 @@ describe("PlayPage tests", () => {
     ).toBeInTheDocument();
     axiosMock
       .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
-      .reply(200, [{ id: 9, numCows: 2, health: 80 }]);
+      .reply(200, [{ id: 9, herdNumber: 9, numCows: 2, health: 80 }]);
     expect(
       axiosMock.history.get.filter(
         (call) => call.url === "/api/herds/forcurrentuser",
@@ -260,14 +260,14 @@ describe("PlayPage tests", () => {
     async (action) => {
       axiosMock
         .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
-        .reply(200, [{ id: 1, numCows: 2, health: 80 }]);
+        .reply(200, [{ id: 1, herdNumber: 1, numCows: 2, health: 80 }]);
       renderPage();
       expect(
         await screen.findByText("Total cows in herds: 2"),
       ).toBeInTheDocument();
       axiosMock
         .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
-        .reply(200, [{ id: 1, numCows: 3, health: 90 }]);
+        .reply(200, [{ id: 1, herdNumber: 1, numCows: 3, health: 90 }]);
       axiosMock
         .onGet("/api/farmer/forcurrentuser", { params: { gameId: 1 } })
         .reply(200, { ...defaultFarmer, totalWealth: 123 });
@@ -299,7 +299,7 @@ describe("PlayPage tests", () => {
       expect(screen.getByText("You have no herds yet.")).toBeInTheDocument();
       axiosMock
         .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
-        .reply(200, [{ id: 5, numCows: 3, health: 41 }]);
+        .reply(200, [{ id: 5, herdNumber: 5, numCows: 3, health: 41 }]);
       await act(async () => {
         await vi.advanceTimersByTimeAsync(10000);
       });
@@ -459,7 +459,7 @@ describe("PlayPage tests", () => {
     });
     axiosMock
       .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
-      .reply(200, [{ id: 1, numCows: 2, health: 80 }]);
+      .reply(200, [{ id: 1, herdNumber: 1, numCows: 2, health: 80 }]);
     renderPage();
 
     fireEvent.click(await screen.findByTestId("sell-cow-button"));

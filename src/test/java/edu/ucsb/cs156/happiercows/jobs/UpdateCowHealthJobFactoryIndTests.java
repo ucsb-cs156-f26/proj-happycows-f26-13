@@ -1,6 +1,7 @@
 package edu.ucsb.cs156.happiercows.jobs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +13,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import edu.ucsb.cs156.happiercows.JobTestCase;
 import edu.ucsb.cs156.happiercows.repositories.GameRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
+import edu.ucsb.cs156.happiercows.repositories.HerdRepository;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 import edu.ucsb.cs156.happiercows.services.GamePlusBuilderService;
 
@@ -29,6 +31,9 @@ public class UpdateCowHealthJobFactoryIndTests extends JobTestCase {
     UserRepository userRepository;
 
     @MockBean
+    HerdRepository herdRepository;
+
+    @MockBean
     GamePlusBuilderService gamePlusBuilderService;
 
     @Autowired
@@ -44,6 +49,10 @@ public class UpdateCowHealthJobFactoryIndTests extends JobTestCase {
         assertEquals(gameRepository,updateCowHealthJobInd.getGameRepository());
         assertEquals(farmerRepository,updateCowHealthJobInd.getFarmerRepository());
         assertEquals(userRepository,updateCowHealthJobInd.getUserRepository());
+        assertEquals(herdRepository,updateCowHealthJobInd.getHerdRepository());
+        // cow deaths use real random numbers in [0, 1)
+        double random = updateCowHealthJobInd.getRandom().getAsDouble();
+        assertTrue(random >= 0.0 && random < 1.0);
         assertEquals(gamePlusBuilderService,updateCowHealthJobInd.getGamePlusBuilderService());
 
     }

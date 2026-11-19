@@ -14,23 +14,21 @@ describe("HerdList", () => {
         .getAllByRole("columnheader")
         .map((cell) => cell.textContent),
     ).toEqual(["Herd", "Cows", "Health"]);
-    expect(within(rows[1]).getByRole("rowheader")).toHaveTextContent(
-      "Herd #11",
-    );
+    expect(within(rows[1]).getByRole("rowheader")).toHaveTextContent("Herd #1");
     expect(
       within(rows[1])
         .getAllByRole("cell")
         .map((cell) => cell.textContent),
     ).toEqual(["3", "100.00%"]);
-    expect(within(rows[2]).getByRole("rowheader")).toHaveTextContent(
-      "Herd #12",
-    );
+    expect(within(rows[2]).getByRole("rowheader")).toHaveTextContent("Herd #2");
     expect(
       within(rows[2])
         .getAllByRole("cell")
         .map((cell) => cell.textContent),
     ).toEqual(["7", "62.34%"]);
     expect(screen.getByText("Total cows in herds: 10")).toBeInTheDocument();
+    // herds are numbered per farm (herdNumber), not by database id
+    expect(screen.queryByText("Herd #11")).not.toBeInTheDocument();
     expect(screen.getByText("Your Herds")).toBeInTheDocument();
     expect(
       screen.queryByText("You have no herds yet."),
@@ -38,7 +36,9 @@ describe("HerdList", () => {
   });
 
   test("shows a single herd with zero health", () => {
-    render(<HerdList herds={[{ id: 4, numCows: 2, health: 0 }]} />);
+    render(
+      <HerdList herds={[{ id: 4, herdNumber: 1, numCows: 2, health: 0 }]} />,
+    );
     expect(screen.getAllByRole("row")).toHaveLength(2);
     expect(screen.getByText("0.00%")).toBeInTheDocument();
     expect(screen.getByText("Total cows in herds: 2")).toBeInTheDocument();
