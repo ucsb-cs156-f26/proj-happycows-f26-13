@@ -313,6 +313,79 @@ describe("PlayPage tests", () => {
     }
   });
 
+  test("refreshes Farm Stats and the cow picture after a background health update", async () => {
+    const farmerAt = (cowHealth) => ({
+      ...defaultFarmer,
+      cowHealth,
+      numOfCows: 3,
+      cowsBought: 3,
+      cowsSold: 0,
+      cowDeaths: 0,
+    });
+    setupDefaultMocks({
+      farmerResponse: { status: 200, body: farmerAt(100) },
+      herds: [{ id: 5, herdNumber: 1, numCows: 3, health: 100 }],
+    });
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        renderPage();
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      expect(screen.getByText("❤️ Cow Health: 100%")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("playpage-div").style.backgroundImage,
+      ).toContain("PlayPageBackground-Smiling");
+
+      // The daily health job runs while the page stays open: no buy, sell,
+      // or reload happens before the next poll.
+      axiosMock
+        .onGet("/api/farmer/forcurrentuser", { params: { gameId: 1 } })
+        .reply(200, farmerAt(10));
+      axiosMock
+        .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+        .reply(200, [{ id: 5, herdNumber: 1, numCows: 3, health: 10 }]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10000);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+
+      expect(screen.getByText("10.00%")).toBeInTheDocument();
+      expect(screen.getByText("❤️ Cow Health: 10%")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("playpage-div").style.backgroundImage,
+      ).toContain("PlayPageBackground-Dead");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("does not keep re-requesting the farmer after it fails to load", async () => {
+    setupDefaultMocks({ farmerResponse: { status: 500, body: {} } });
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        renderPage();
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30000);
+      });
+      expect(
+        axiosMock.history.get.filter(
+          (call) => call.url === "/api/farmer/forcurrentuser",
+        ),
+      ).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("does not request or display herds for a game the user has not joined", async () => {
     setupDefaultMocks({
       currentUser: {

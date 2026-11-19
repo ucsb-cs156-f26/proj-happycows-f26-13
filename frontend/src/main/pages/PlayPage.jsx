@@ -39,18 +39,29 @@ export default function PlayPage() {
     setIsModalOpen(false);
   };
 
+  // Same interval as the herds query below, so Farm Stats and the cow
+  // picture pick up background health updates along with the herd table.
+  const PLAY_PAGE_REFRESH_MS = 10000;
+
   // Stryker disable all
+  const farmerAxiosParams = {
+    method: "GET",
+    url: "/api/farmer/forcurrentuser",
+    params: {
+      gameId: gameId,
+    },
+  };
+  // Stryker restore all
   const { data: farmer, error: farmerError } = useBackend(
     [`/api/farmer/forcurrentuser?gameId=${gameId}`],
+    farmerAxiosParams,
+    undefined,
     {
-      method: "GET",
-      url: "/api/farmer/forcurrentuser",
-      params: {
-        gameId: gameId,
-      },
+      // Only poll once the farmer has loaded, so a failed load (e.g. not
+      // enrolled) doesn't repeat its error toast every 10 seconds.
+      refetchInterval: (data) => (data ? PLAY_PAGE_REFRESH_MS : false),
     },
   );
-  // Stryker restore all
 
   // Stryker disable all
   const { data: gamePlus } = useBackend([`/api/game/plus?id=${gameId}`], {
@@ -139,7 +150,7 @@ export default function PlayPage() {
       enabled: Boolean(allowed && farmer),
       retry: false,
       // Keep daily health updates visible while the play page is open.
-      refetchInterval: 10000,
+      refetchInterval: PLAY_PAGE_REFRESH_MS,
     },
   );
 
