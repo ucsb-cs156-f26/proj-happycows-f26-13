@@ -59,7 +59,7 @@ export default function PlayPage() {
     {
       // Only poll once the farmer has loaded, so a failed load (e.g. not
       // enrolled) doesn't repeat its error toast every 10 seconds.
-      refetchInterval: (data) => (data ? PLAY_PAGE_REFRESH_MS : false),
+      refetchInterval: (data) => Boolean(data) && PLAY_PAGE_REFRESH_MS,
     },
   );
 
