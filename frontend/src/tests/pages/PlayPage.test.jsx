@@ -248,6 +248,13 @@ describe("PlayPage tests", () => {
     ).not.toBeInTheDocument();
   });
 
+  const submitSell = async () => {
+    fireEvent.change(await screen.findByTestId("sell-herds-modal-input-1"), {
+      target: { value: "1" },
+    });
+    fireEvent.click(screen.getByTestId("sell-herds-modal-submit"));
+  };
+
   test.each(["buy", "sell"])(
     "refreshes herds and money after %s",
     async (action) => {
@@ -265,7 +272,11 @@ describe("PlayPage tests", () => {
         .onGet("/api/farmer/forcurrentuser", { params: { gameId: 1 } })
         .reply(200, { ...defaultFarmer, totalWealth: 123 });
       fireEvent.click(screen.getByTestId(`${action}-cow-button`));
-      fireEvent.click(await screen.findByTestId("buy-sell-cow-modal-submit"));
+      if (action === "sell") {
+        await submitSell();
+      } else {
+        fireEvent.click(await screen.findByTestId("buy-sell-cow-modal-submit"));
+      }
       expect(
         await screen.findByText("Total cows in herds: 3"),
       ).toBeInTheDocument();
@@ -439,21 +450,66 @@ describe("PlayPage tests", () => {
     await waitFor(() => expect(axiosMock.history.put.length).toBe(1));
   });
 
-  test("click sell button", async () => {
+  test("click sell button opens the herd sell window and sends per-herd counts", async () => {
+    setupDefaultMocks({
+      gamePlus: {
+        ...defaultGamePlus,
+        game: { ...defaultGamePlus.game, cowPrice: 10, sellingFee: 1 },
+      },
+    });
+    axiosMock
+      .onGet("/api/herds/forcurrentuser", { params: { gameId: 1 } })
+      .reply(200, [{ id: 1, numCows: 2, health: 80 }]);
     renderPage();
 
-    expect(await screen.findByTestId("sell-cow-button")).toBeInTheDocument();
+    fireEvent.click(await screen.findByTestId("sell-cow-button"));
 
-    const sellCowButton = screen.getByTestId("sell-cow-button");
-    fireEvent.click(sellCowButton);
+    expect(await screen.findByTestId("sell-herds-modal")).toBeInTheDocument();
+    expect(screen.queryByTestId("buy-sell-cow-modal")).not.toBeInTheDocument();
+    expect(screen.getByTestId("sell-herds-modal-total")).toHaveTextContent(
+      "Total sale value: $0.00",
+    );
 
-    const modalSell = await screen.findByTestId("buy-sell-cow-modal");
-    expect(modalSell).toBeInTheDocument();
-
-    const submitModalButton = screen.getByTestId("buy-sell-cow-modal-submit");
-    fireEvent.click(submitModalButton);
+    fireEvent.change(screen.getByTestId("sell-herds-modal-input-1"), {
+      target: { value: "1" },
+    });
+    // 1 cow * ($10 * 80% health - $1 selling fee)
+    expect(screen.getByTestId("sell-herds-modal-total")).toHaveTextContent(
+      "Total sale value: $7.00",
+    );
+    fireEvent.click(screen.getByTestId("sell-herds-modal-submit"));
 
     await waitFor(() => expect(axiosMock.history.put.length).toBe(1));
+    const put = axiosMock.history.put[0];
+    expect(put.url).toBe("/api/farmer/sell");
+    expect(put.params).toEqual({ gameId: 1 });
+    expect(JSON.parse(put.data)).toEqual({ 1: 1 });
+    await waitFor(() =>
+      expect(screen.queryByTestId("sell-herds-modal")).not.toBeInTheDocument(),
+    );
+  });
+
+  test("sell window closes when cancel is clicked", async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByTestId("sell-cow-button"));
+    expect(await screen.findByTestId("sell-herds-modal")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("sell-herds-modal-cancel"));
+
+    await waitFor(() =>
+      expect(screen.queryByTestId("sell-herds-modal")).not.toBeInTheDocument(),
+    );
+    expect(axiosMock.history.put.length).toBe(0);
+  });
+
+  test("buy window does not show the herd sell window", async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByTestId("buy-cow-button"));
+
+    expect(await screen.findByTestId("buy-sell-cow-modal")).toBeInTheDocument();
+    expect(screen.queryByTestId("sell-herds-modal")).not.toBeInTheDocument();
   });
 
   test("Make sure that both the Announcements and Welcome Farmer components show up", async () => {

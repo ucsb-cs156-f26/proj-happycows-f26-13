@@ -83,8 +83,9 @@ const ManageCows = ({ farmer, game, setMessage, openModal }) => {
                   per cow.
                 </li>
                 <li>
-                  Selling revenue is the current cow price multiplied by cow
-                  health (as a percentage), minus the selling fee per cow.
+                  Selling revenue is the current cow price multiplied by the
+                  health of the cow's herd (as a percentage), minus the selling
+                  fee per cow.
                 </li>
               </ul>
             </p>

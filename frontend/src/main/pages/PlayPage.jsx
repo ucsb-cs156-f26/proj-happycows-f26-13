@@ -16,6 +16,7 @@ import { useCurrentUser } from "main/utils/currentUser";
 import { getPlayPageBackground } from "main/utils/playPageBackgroundUtils";
 import ChatPanel from "main/components/Chat/ChatPanel";
 import ManageCowsModal from "main/components/Game/ManageCowsModal";
+import SellHerdsModal from "main/components/Game/SellHerdsModal";
 
 export default function PlayPage() {
   const { gameId } = useParams();
@@ -177,13 +178,13 @@ export default function PlayPage() {
   };
 
   // Stryker disable all
-  const objectToAxiosParamsSell = (newFarmer) => ({
+  // herdCounts maps each herd id to the number of cows to sell from it.
+  const objectToAxiosParamsSell = (herdCounts) => ({
     url: "/api/farmer/sell",
     method: "PUT",
-    data: newFarmer,
+    data: herdCounts,
     params: {
       gameId: gameId,
-      numCows: numCows,
     },
   });
   // Stryker restore all
@@ -196,8 +197,8 @@ export default function PlayPage() {
   );
   // Stryker restore all
 
-  const onSell = (farmer, numCows) => {
-    mutationsell.mutate(farmer, numCows);
+  const onSell = (herdCounts) => {
+    mutationsell.mutate(herdCounts);
   };
 
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -278,10 +279,16 @@ export default function PlayPage() {
                 setNumber={setNumCows}
                 farmer={farmer}
                 game={gamePlus.game}
-                isOpen={isModalOpen}
+                isOpen={isModalOpen && message === "buy"}
                 message={message}
                 onClose={closeModal}
                 onBuy={onBuy}
+              />
+              <SellHerdsModal
+                isOpen={isModalOpen && message === "sell"}
+                onClose={closeModal}
+                herds={herds}
+                game={gamePlus.game}
                 onSell={onSell}
               />
             </CardGroup>
