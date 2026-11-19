@@ -1,0 +1,45 @@
+{
+  "databaseChangeLog": [
+    {
+      "changeSet": {
+        "id": "020-add-herd-number-to-herds",
+        "author": "mz",
+        "preConditions": [
+          { "onFail": "MARK_RAN" },
+          {
+            "not": [
+              {
+                "columnExists": {
+                  "tableName": "herds",
+                  "columnName": "herd_number"
+                }
+              }
+            ]
+          }
+        ],
+        "changes": [
+          {
+            "addColumn": {
+              "tableName": "herds",
+              "columns": [
+                {
+                  "column": {
+                    "name": "herd_number",
+                    "type": "INT",
+                    "defaultValueNumeric": 0,
+                    "constraints": { "nullable": false }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "sql": {
+              "sql": "UPDATE herds SET herd_number = (SELECT COUNT(*) FROM herds h2 WHERE h2.user_id = herds.user_id AND h2.game_id = herds.game_id AND h2.id <= herds.id)"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

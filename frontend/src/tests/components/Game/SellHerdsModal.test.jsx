@@ -16,7 +16,7 @@ vi.mock("react-toastify", async () => {
   };
 });
 
-// herd 11: 3 cows at 100% health; herd 12: 7 cows at 62.345% health
+// Herd #1 (id 11): 3 cows at 100% health; Herd #2 (id 12): 7 cows at 62.345% health
 const herds = herdFixtures.severalHerds;
 const game = { cowPrice: 100, sellingFee: 2 };
 
@@ -66,17 +66,13 @@ describe("SellHerdsModal", () => {
         .getAllByRole("columnheader")
         .map((cell) => cell.textContent),
     ).toEqual(["Herd", "Cows", "Health", "Sell"]);
-    expect(within(rows[1]).getByRole("rowheader")).toHaveTextContent(
-      "Herd #11",
-    );
+    expect(within(rows[1]).getByRole("rowheader")).toHaveTextContent("Herd #1");
     expect(within(rows[1]).getByText("3")).toBeInTheDocument();
     expect(within(rows[1]).getByText("100.00%")).toBeInTheDocument();
-    expect(within(rows[2]).getByRole("rowheader")).toHaveTextContent(
-      "Herd #12",
-    );
+    expect(within(rows[2]).getByRole("rowheader")).toHaveTextContent("Herd #2");
     expect(within(rows[2]).getByText("62.34%")).toBeInTheDocument();
 
-    const input = screen.getByLabelText("Cows to sell from Herd #12");
+    const input = screen.getByLabelText("Cows to sell from Herd #2");
     expect(input).toHaveValue(null);
     expect(input).toHaveAttribute("type", "number");
     expect(input).toHaveAttribute("min", "0");

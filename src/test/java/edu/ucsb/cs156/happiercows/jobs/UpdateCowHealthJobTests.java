@@ -5,9 +5,11 @@ import edu.ucsb.cs156.happiercows.entities.Game;
 import edu.ucsb.cs156.happiercows.entities.GamePlus;
 import edu.ucsb.cs156.happiercows.entities.User;
 import edu.ucsb.cs156.happiercows.entities.Farmer;
+import edu.ucsb.cs156.happiercows.entities.Herd;
 import edu.ucsb.cs156.jobs.entities.Job;
 import edu.ucsb.cs156.happiercows.repositories.GameRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
+import edu.ucsb.cs156.happiercows.repositories.HerdRepository;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 import edu.ucsb.cs156.jobs.services.JobContext;
 import edu.ucsb.cs156.happiercows.services.GamePlusBuilderService;
@@ -23,13 +25,17 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.DoubleSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(SpringExtension.class)
@@ -47,11 +53,21 @@ public class UpdateCowHealthJobTests extends JobTestCase {
         @Mock
         GamePlusBuilderService gamePlusBuilderService;
 
+        @Mock
+        HerdRepository herdRepository;
+
         private final User user = User
                         .builder()
                         .id(1L)
                         .fullName("Chris Gaucho")
                         .email("cgaucho@example.org")
+                        .build();
+
+        private final User user2 = User
+                        .builder()
+                        .id(2L)
+                        .fullName("Dana Gaucho")
+                        .email("dgaucho@example.org")
                         .build();
 
         private final Game game = Game
@@ -69,8 +85,6 @@ public class UpdateCowHealthJobTests extends JobTestCase {
                         .aboveCapacityHealthUpdateStrategy(CowHealthUpdateStrategies.Noop)
                         .build();
 
-
-
         private final Farmer farmer = Farmer
                         .builder()
                         .user(user)
@@ -80,15 +94,56 @@ public class UpdateCowHealthJobTests extends JobTestCase {
                         .cowHealth(10.0)
                         .build();
 
-
+        private final Herd herd = herd(1, 1, 10.0);
 
         private final Job job = Job.builder().build();
         private final JobContext ctx = new JobContext(null, job);
 
+        // Fails the test if a cow death roll happens when none should.
+        private static final DoubleSupplier NO_RANDOM = () -> {
+                throw new AssertionError("random should not be used");
+        };
+
+        private DoubleSupplier random = NO_RANDOM;
+
+        private static Herd herd(int herdNumber, int numCows, double health) {
+                return Herd.builder().id(herdNumber).herdNumber(herdNumber).numCows(numCows).health(health).build();
+        }
+
+        // Returns the given values in order, then fails if asked for more.
+        private static DoubleSupplier sequence(double... values) {
+                int[] next = { 0 };
+                return () -> {
+                        if (next[0] >= values.length) {
+                                throw new AssertionError("random used more times than expected");
+                        }
+                        return values[next[0]++];
+                };
+        }
+
         private void runUpdateCowHealthJob() throws Exception {
                 var updateCowHealthJob = new UpdateCowHealthJob(gameRepository, farmerRepository,
-                                userRepository, gamePlusBuilderService);
+                                userRepository, gamePlusBuilderService, herdRepository, random);
                 updateCowHealthJob.accept(ctx);
+        }
+
+        private void setupUpdateCowHealthTestOnGame(int totalCows, int numUsers) {
+                // the 1-cow herd is below 30% health, so it rolls once; it survives
+                random = sequence(0.5);
+                setupGame(totalCows, numUsers, List.of(farmer));
+                when(herdRepository.findByGameIdAndUserId(game.getId(), 1L)).thenReturn(List.of(herd));
+        }
+
+        private void setupGame(int totalCows, int numUsers, List<Farmer> farmers) {
+                List<Game> listOfGame = List.of(game);
+                GamePlus gamePlus = GamePlus.builder().game(game).totalCows(totalCows).totalUsers(numUsers).build();
+
+                when(gameRepository.findAll()).thenReturn(listOfGame);
+                when(farmerRepository.findByGameId(game.getId())).thenReturn(farmers);
+                when(gameRepository.getNumCows(game.getId())).thenReturn(Optional.of(totalCows));
+                when(gameRepository.getNumUsers(game.getId())).thenReturn(Optional.of(numUsers));
+                when(gamePlusBuilderService.convertToGamePlus(eq(listOfGame))).thenReturn(List.of(gamePlus));
+                when(gamePlusBuilderService.toGamePlus(eq(game))).thenReturn(gamePlus);
         }
 
         @Test
@@ -127,36 +182,24 @@ public class UpdateCowHealthJobTests extends JobTestCase {
                 assertEquals(expected, job.getLog());
         }
 
-    private void setupUpdateCowHealthTestOnGame(int totalCows, int numUsers) {
-        List<Game> listOfGame = List.of(game); 
-        GamePlus gamePlus = GamePlus.builder().game(game).totalCows(totalCows).totalUsers(numUsers).build();
-
-        List<GamePlus> listOfGamePlus = List.of(gamePlus);
-        
-        when(gameRepository.findAll()).thenReturn(listOfGame);
-        when(farmerRepository.findByGameId(game.getId())).thenReturn(List.of(farmer));
-        when(gameRepository.getNumCows(game.getId())).thenReturn(Optional.of(totalCows));
-        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
-        when(gameRepository.getNumUsers(game.getId())).thenReturn(Optional.of(numUsers));
-        when(gamePlusBuilderService.convertToGamePlus(eq(listOfGame))).thenReturn(listOfGamePlus);
-        when(gamePlusBuilderService.toGamePlus(eq(game))).thenReturn(gamePlus);
-    }
-
         @Test
         void test_uses_above_capacity_update_strategy() throws Exception {
                 game.setAboveCapacityHealthUpdateStrategy(CowHealthUpdateStrategies.Constant);
-                double expectedNewHealth = 9.0;
 
                 setupUpdateCowHealthTestOnGame(101, 1);
                 runUpdateCowHealthJob();
 
-                assertEquals(expectedNewHealth, farmer.getCowHealth());
+                assertEquals(9.0, herd.getHealth());
+                assertEquals(9.0, farmer.getCowHealth());
+                verify(herdRepository).save(herd);
+                verify(farmerRepository).save(farmer);
 
                 String expected = """
                                 Updating cow health...
                                 Game test game, degradationRate: 1.0, effectiveCapacity: 100
                                 User: Chris Gaucho, numCows: 1, cowHealth: 10.0
-                                 old cow health: 10.0, new cow health: 9.0
+                                 Herd #1: old health: 10.0, new health: 9.0, cows died: 0, cows left: 1
+                                 new numCows: 1, new cowHealth: 9.0
                                 Cow health has been updated!""";
                 assertEquals(expected, job.getLog());
         }
@@ -164,194 +207,206 @@ public class UpdateCowHealthJobTests extends JobTestCase {
         @Test
         void test_uses_below_capacity_update_strategy() throws Exception {
                 game.setBelowCapacityHealthUpdateStrategy(CowHealthUpdateStrategies.Constant);
-                double expectedNewHealth = 11.0;
                 setupUpdateCowHealthTestOnGame(99, 1);
                 runUpdateCowHealthJob();
 
-                assertEquals(expectedNewHealth, farmer.getCowHealth());
-
-                String expected = """
-                                Updating cow health...
-                                Game test game, degradationRate: 1.0, effectiveCapacity: 100
-                                User: Chris Gaucho, numCows: 1, cowHealth: 10.0
-                                 old cow health: 10.0, new cow health: 11.0
-                                Cow health has been updated!""";
-                assertEquals(expected, job.getLog());
+                assertEquals(11.0, herd.getHealth());
+                assertEquals(11.0, farmer.getCowHealth());
         }
 
         @Test
         void test_uses_below_capacity_update_strategy_if_equal_to_carrying_capacity() throws Exception {
                 game.setBelowCapacityHealthUpdateStrategy(CowHealthUpdateStrategies.Constant);
-                double expectedNewHealth = 11.0;
 
                 setupUpdateCowHealthTestOnGame(game.getCarryingCapacity(), 1);
                 runUpdateCowHealthJob();
 
-                assertEquals(expectedNewHealth, farmer.getCowHealth());
-
-                String expected = """
-                                Updating cow health...
-                                Game test game, degradationRate: 1.0, effectiveCapacity: 100
-                                User: Chris Gaucho, numCows: 1, cowHealth: 10.0
-                                 old cow health: 10.0, new cow health: 11.0
-                                Cow health has been updated!""";
-                assertEquals(expected, job.getLog());
+                assertEquals(11.0, herd.getHealth());
         }
 
         @Test
         void test_cow_health_minimum_is_0() throws Exception {
                 var mockStrategy = mock(CowHealthUpdateStrategy.class);
-                when(mockStrategy.calculateNewCowHealth(any(), any(), anyInt())).thenReturn(-1.0);
+                when(mockStrategy.calculateNewCowHealth(any(), anyDouble(), anyInt())).thenReturn(-1.0);
                 var newHealth = UpdateCowHealthJob.calculateNewCowHealthUsingStrategy(
-                                mockStrategy,
-                                gamePlusBuilderService.toGamePlus(game),
-                                farmer,
-                                1);
+                                mockStrategy, gamePlusBuilderService.toGamePlus(game), 10.0, 1);
                 assertEquals(0.0, newHealth);
         }
 
         @Test
         void test_cow_health_maximum_is_100() throws Exception {
                 var mockStrategy = mock(CowHealthUpdateStrategy.class);
-                when(mockStrategy.calculateNewCowHealth(any(), any(), anyInt())).thenReturn(101.0);
+                when(mockStrategy.calculateNewCowHealth(any(), anyDouble(), anyInt())).thenReturn(101.0);
                 var newHealth = UpdateCowHealthJob.calculateNewCowHealthUsingStrategy(
-                                mockStrategy,
-                                gamePlusBuilderService.toGamePlus(game),
-                                farmer,
-                                1);
+                                mockStrategy, gamePlusBuilderService.toGamePlus(game), 10.0, 1);
                 assertEquals(100.0, newHealth);
         }
 
         @Test
+        void test_strategy_is_given_the_herds_health() throws Exception {
+                var mockStrategy = mock(CowHealthUpdateStrategy.class);
+                when(mockStrategy.calculateNewCowHealth(any(), eq(42.0), eq(7))).thenReturn(43.0);
+                var newHealth = UpdateCowHealthJob.calculateNewCowHealthUsingStrategy(
+                                mockStrategy, gamePlusBuilderService.toGamePlus(game), 42.0, 7);
+                assertEquals(43.0, newHealth);
+        }
+
+        @Test
+        void two_herds_of_one_farmer_keep_different_health_and_farmer_gets_weighted_average() throws Exception {
+                game.setBelowCapacityHealthUpdateStrategy(CowHealthUpdateStrategies.Linear);
+                Herd herd1 = herd(1, 1, 50.0);
+                Herd herd2 = herd(2, 3, 80.0);
+                farmer.setNumOfCows(4);
+
+                setupGame(99, 1, List.of(farmer));
+                when(herdRepository.findByGameIdAndUserId(game.getId(), 1L)).thenReturn(List.of(herd1, herd2));
+
+                runUpdateCowHealthJob();
+
+                // Linear, 1 cow under capacity: each herd's health goes up by 1
+                assertEquals(51.0, herd1.getHealth());
+                assertEquals(81.0, herd2.getHealth());
+                assertEquals(4, farmer.getNumOfCows());
+                // (1 * 51 + 3 * 81) / 4
+                assertEquals(73.5, farmer.getCowHealth());
+
+                String expected = """
+                                Updating cow health...
+                                Game test game, degradationRate: 1.0, effectiveCapacity: 100
+                                User: Chris Gaucho, numCows: 4, cowHealth: 10.0
+                                 Herd #1: old health: 50.0, new health: 51.0, cows died: 0, cows left: 1
+                                 Herd #2: old health: 80.0, new health: 81.0, cows died: 0, cows left: 3
+                                 new numCows: 4, new cowHealth: 73.5
+                                Cow health has been updated!""";
+                assertEquals(expected, job.getLog());
+        }
+
+        @Test
         void test_updating_values_for_multiple_users() throws Exception {
-                var farmer1 = farmer;
-                var farmer2 = Farmer
-                                .builder()
-                                .user(user)
-                                .game(game)
-                                .totalWealth(300)
-                                .numOfCows(6)
-                                .cowHealth(20)
-                                .build();
                 game.setBelowCapacityHealthUpdateStrategy(CowHealthUpdateStrategies.Linear);
-                
-                GamePlus gamePlus = GamePlus.builder().game(game).totalCows(6).totalUsers(1).build();
+                Farmer farmer2 = Farmer.builder().user(user2).game(game).totalWealth(300)
+                                .numOfCows(6).cowHealth(20).build();
+                Herd herd2 = herd(1, 6, 20.0);
+                // both herds are below 30% health: 1 roll for the first farmer's
+                // cow, then 6 for herd2's cows; none die
+                random = sequence(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5);
 
-                List<GamePlus> gamePlusList = List.of(gamePlus);
-                List<Game> gameList = List.of(game);
-
-                when(gameRepository.findAll()).thenReturn(gameList);
-                when(gamePlusBuilderService.convertToGamePlus(eq(gameList))).thenReturn(gamePlusList);
-                when(gamePlusBuilderService.toGamePlus(eq(game))).thenReturn(gamePlus);
-                when(farmerRepository.findByGameId(game.getId()))
-                                .thenReturn(List.of(farmer1, farmer2));
-                when(gameRepository.getNumCows(game.getId())).thenReturn(Optional.of(99));
-                when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-                when(gameRepository.getNumUsers(game.getId())).thenReturn(Optional.of(2));
+                setupGame(99, 2, List.of(farmer, farmer2));
+                when(herdRepository.findByGameIdAndUserId(game.getId(), 1L)).thenReturn(List.of(herd));
+                when(herdRepository.findByGameIdAndUserId(game.getId(), 2L)).thenReturn(List.of(herd2));
 
                 runUpdateCowHealthJob();
 
-                String expected = """
-                                Updating cow health...
-                                Game test game, degradationRate: 1.0, effectiveCapacity: 100
-                                User: Chris Gaucho, numCows: 1, cowHealth: 10.0
-                                 old cow health: 10.0, new cow health: 11.0
-                                User: Chris Gaucho, numCows: 6, cowHealth: 20.0
-                                 old cow health: 20.0, new cow health: 21.0
-                                Cow health has been updated!""";
-
-                assertEquals(expected, job.getLog());
-
-                assertEquals(11.0, farmer1.getCowHealth());
+                assertEquals(11.0, farmer.getCowHealth());
                 assertEquals(21.0, farmer2.getCowHealth());
+                assertEquals(6, farmer2.getNumOfCows());
         }
 
         @Test
-        void test_calculateCowDeaths_health_zero() throws Exception {
-                // arrange
-                Farmer farmer = Farmer
-                                .builder()
-                                .user(user)
-                                .game(game)
-                                .totalWealth(300)
-                                .numOfCows(5)
-                                .cowHealth(0.0)
-                                .cowDeaths(0)
-                                .build();
+        void calculateCowDeaths_kills_every_cow_at_zero_health() {
+                Herd dying = herd(1, 5, 0.0);
 
-                // act
-                UpdateCowHealthJob.calculateCowDeaths(farmer, ctx);
-
-                // assert
-                assertEquals(0, farmer.getNumOfCows());
-                assertEquals(5, farmer.getCowDeaths());
-                assertEquals(100.0, farmer.getCowHealth());
+                assertEquals(5, UpdateCowHealthJob.calculateCowDeaths(dying, NO_RANDOM));
+                assertEquals(0, dying.getNumCows());
         }
 
         @Test
-        void test_calculateCowDeaths_health_nonZero() throws Exception {
-                // arrange
-                Farmer farmer = Farmer
-                                .builder()
-                                .user(user)
-                                .game(game)
-                                .totalWealth(300)
-                                .numOfCows(5)
-                                .cowHealth(1.0)
-                                .cowDeaths(42)
-                                .build();
+        void calculateCowDeaths_gives_each_cow_a_one_percent_chance_below_30_health() {
+                Herd sick = herd(1, 5, 29.9);
 
-                // act
-                UpdateCowHealthJob.calculateCowDeaths(farmer, ctx);
+                // only rolls below 0.01 kill a cow
+                int deaths = UpdateCowHealthJob.calculateCowDeaths(sick, sequence(0.0, 0.5, 0.0099, 0.01, 0.99));
 
-                // assert
-                assertEquals(5, farmer.getNumOfCows());
-                assertEquals(42, farmer.getCowDeaths());
-                assertEquals(1.0, farmer.getCowHealth());
+                assertEquals(2, deaths);
+                assertEquals(3, sick.getNumCows());
+                assertEquals(29.9, sick.getHealth());
         }
 
         @Test
-        void test_cowDeaths_in_job_context() throws Exception {
-                Farmer farmer = Farmer
-                                .builder()
-                                .user(user)
-                                .game(game)
-                                .totalWealth(300)
-                                .numOfCows(5)
-                                .cowHealth(-1.0)
-                                .cowDeaths(0)
-                                .build();
-                game.setBelowCapacityHealthUpdateStrategy(CowHealthUpdateStrategies.Linear);
+        void calculateCowDeaths_does_nothing_at_30_health_or_more() {
+                Herd atThreshold = herd(1, 5, 30.0);
+                Herd healthy = herd(2, 5, 90.0);
 
-                GamePlus gamePlus = GamePlus.builder().game(game).totalCows(5).totalUsers(1).build();
+                assertEquals(0, UpdateCowHealthJob.calculateCowDeaths(atThreshold, NO_RANDOM));
+                assertEquals(0, UpdateCowHealthJob.calculateCowDeaths(healthy, NO_RANDOM));
+                assertEquals(5, atThreshold.getNumCows());
+                assertEquals(5, healthy.getNumCows());
+        }
 
-                List<GamePlus> gamePlusList = List.of(gamePlus);
-                List<Game> gameList = List.of(game);
+        @Test
+        void death_rule_matches_gamePlay_md() {
+                assertEquals(30.0, UpdateCowHealthJob.DEATH_HEALTH_THRESHOLD);
+                assertEquals(0.01, UpdateCowHealthJob.DEATH_CHANCE_PER_COW);
+        }
 
-                when(gamePlusBuilderService.convertToGamePlus(eq(gameList))).thenReturn(gamePlusList);
-                when(gamePlusBuilderService.toGamePlus(eq(game))).thenReturn(gamePlus);
+        @Test
+        void cows_die_one_herd_at_a_time_and_empty_herds_are_removed() throws Exception {
+                game.setBelowCapacityHealthUpdateStrategy(CowHealthUpdateStrategies.Noop);
+                Herd dead = herd(1, 4, 0.0);
+                Herd sick = herd(2, 3, 20.0);
+                Herd healthy = herd(3, 2, 90.0);
+                farmer.setNumOfCows(9);
+                farmer.setCowDeaths(1);
+                // sick herd's 3 cows: the second one dies
+                random = sequence(0.5, 0.001, 0.5);
 
-                when(gameRepository.findAll()).thenReturn(List.of(game));
-                when(farmerRepository.findByGameId(game.getId())).thenReturn(List.of(farmer));
-                when(gameRepository.getNumCows(game.getId())).thenReturn(Optional.of(99));
-                when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-                when(gameRepository.getNumUsers(game.getId())).thenReturn(Optional.of(1));
+                setupGame(9, 1, List.of(farmer));
+                when(herdRepository.findByGameIdAndUserId(game.getId(), 1L))
+                                .thenReturn(List.of(dead, sick, healthy));
 
                 runUpdateCowHealthJob();
+
+                verify(herdRepository).delete(dead);
+                verify(herdRepository, never()).save(dead);
+                verify(herdRepository).save(sick);
+                verify(herdRepository).save(healthy);
+                assertEquals(2, sick.getNumCows());
+                assertEquals(2, healthy.getNumCows());
+
+                assertEquals(4, farmer.getNumOfCows());
+                assertEquals(1 + 4 + 1, farmer.getCowDeaths());
+                // (2 * 20 + 2 * 90) / 4; the dead herd no longer counts
+                assertEquals(55.0, farmer.getCowHealth());
 
                 String expected = """
                                 Updating cow health...
                                 Game test game, degradationRate: 1.0, effectiveCapacity: 100
-                                User: Chris Gaucho, numCows: 5, cowHealth: -1.0
-                                 5 cows for this user died.
-                                 old cow health: -1.0, new cow health: 100.0
+                                User: Chris Gaucho, numCows: 9, cowHealth: 10.0
+                                 Herd #1: old health: 0.0, new health: 0.0, cows died: 4, cows left: 0
+                                 Herd #2: old health: 20.0, new health: 20.0, cows died: 1, cows left: 2
+                                 Herd #3: old health: 90.0, new health: 90.0, cows died: 0, cows left: 2
+                                 new numCows: 4, new cowHealth: 55.0
                                 Cow health has been updated!""";
-
                 assertEquals(expected, job.getLog());
+        }
 
+        @Test
+        void farmer_whose_herds_all_die_has_no_cows_and_full_health() throws Exception {
+                game.setBelowCapacityHealthUpdateStrategy(CowHealthUpdateStrategies.Noop);
+                Herd dying = herd(1, 5, 0.0);
+                farmer.setNumOfCows(5);
+
+                setupGame(5, 1, List.of(farmer));
+                when(herdRepository.findByGameIdAndUserId(game.getId(), 1L)).thenReturn(List.of(dying));
+
+                runUpdateCowHealthJob();
+
+                verify(herdRepository).delete(dying);
                 assertEquals(0, farmer.getNumOfCows());
                 assertEquals(5, farmer.getCowDeaths());
                 assertEquals(100.0, farmer.getCowHealth());
+        }
+
+        @Test
+        void farmer_with_no_herds_has_no_cows_and_full_health() throws Exception {
+                setupGame(0, 1, List.of(farmer));
+                when(herdRepository.findByGameIdAndUserId(game.getId(), 1L)).thenReturn(List.of());
+
+                runUpdateCowHealthJob();
+
+                assertEquals(0, farmer.getNumOfCows());
+                assertEquals(100.0, farmer.getCowHealth());
+                verify(farmerRepository).save(farmer);
         }
 
         @Test
@@ -386,16 +441,9 @@ public class UpdateCowHealthJobTests extends JobTestCase {
                 when(gameRepository.getNumCows(game.getId())).thenReturn(Optional.empty());
                 when(gameRepository.getNumUsers(game.getId())).thenReturn(Optional.of(1));
 
-                var updateCowHealthJob = new UpdateCowHealthJob(gameRepository,
-                                farmerRepository,
-                                userRepository, gamePlusBuilderService);
+                var thrown = Assertions.assertThrows(RuntimeException.class, this::runUpdateCowHealthJob);
 
-                var thrown = Assertions.assertThrows(RuntimeException.class, () -> {
-                        updateCowHealthJob.accept(ctx);
-                });
-
-                Assertions.assertEquals("Error calling getNumCows(117)",
-                                thrown.getMessage());
+                Assertions.assertEquals("Error calling getNumCows(117)", thrown.getMessage());
         }
 
         @Test
@@ -404,23 +452,18 @@ public class UpdateCowHealthJobTests extends JobTestCase {
                 game.setId(117);
                 when(gameRepository.getNumUsers(game.getId())).thenReturn(Optional.empty());
 
-                var updateCowHealthJob = new UpdateCowHealthJob(gameRepository,
-                                farmerRepository,
-                                userRepository, gamePlusBuilderService);
+                var thrown = Assertions.assertThrows(RuntimeException.class, this::runUpdateCowHealthJob);
 
-                var thrown = Assertions.assertThrows(RuntimeException.class, () -> {
-                        updateCowHealthJob.accept(ctx);
-                });
-
-                Assertions.assertEquals("Error calling getNumUsers(117)",
-                                thrown.getMessage());
+                Assertions.assertEquals("Error calling getNumUsers(117)", thrown.getMessage());
         }
 
         @Test
-        void game_plus_builder_service_getter_returns_value_from_constructor() {
+        void getters_return_values_from_constructor() {
                 var job = new UpdateCowHealthJob(gameRepository, farmerRepository,
-                                userRepository, gamePlusBuilderService);
+                                userRepository, gamePlusBuilderService, herdRepository, random);
 
                 assertSame(gamePlusBuilderService, job.getGamePlusBuilderService());
+                assertSame(herdRepository, job.getHerdRepository());
+                assertSame(random, job.getRandom());
         }
 }

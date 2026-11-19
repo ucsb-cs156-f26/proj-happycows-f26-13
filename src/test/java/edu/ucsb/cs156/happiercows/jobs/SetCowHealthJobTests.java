@@ -7,6 +7,8 @@ import edu.ucsb.cs156.happiercows.entities.Farmer;
 import edu.ucsb.cs156.jobs.entities.Job;
 import edu.ucsb.cs156.happiercows.repositories.GameRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
+import edu.ucsb.cs156.happiercows.repositories.HerdRepository;
+import edu.ucsb.cs156.happiercows.entities.Herd;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 import edu.ucsb.cs156.jobs.services.JobContext;
 import org.junit.jupiter.api.Test;
@@ -17,10 +19,13 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(SpringExtension.class)
@@ -34,6 +39,9 @@ public class SetCowHealthJobTests extends JobTestCase {
 
     @Mock
     UserRepository userRepository;
+
+    @Mock
+    HerdRepository herdRepository;
 
     private User user = User
             .builder()
@@ -68,7 +76,7 @@ public class SetCowHealthJobTests extends JobTestCase {
 
         // Act
         SetCowHealthJob setCowHealthJob = new SetCowHealthJob(117L, 2.0, gameRepository, farmerRepository,
-                userRepository);
+                userRepository, herdRepository);
         setCowHealthJob.accept(ctx);
 
         // Assert
@@ -105,7 +113,7 @@ public class SetCowHealthJobTests extends JobTestCase {
 
         // Act
         SetCowHealthJob setCowHealthJob = new SetCowHealthJob(117L, 2.0, gameRepository, farmerRepository,
-                userRepository);
+                userRepository, herdRepository);
         setCowHealthJob.accept(ctx);
 
         // Assert
@@ -156,7 +164,7 @@ public class SetCowHealthJobTests extends JobTestCase {
 
         // Act
         SetCowHealthJob setCowHealthJob = new SetCowHealthJob(117, 2, gameRepository, farmerRepository,
-                userRepository);
+                userRepository, herdRepository);
         setCowHealthJob.accept(ctx);
 
         // Assert
@@ -174,5 +182,38 @@ public class SetCowHealthJobTests extends JobTestCase {
 
         assertEquals(expected, jobStarted.getLog());
         farmerList.forEach(farmer -> assertEquals(newFarmer.getCowHealth(), farmer.getCowHealth()));
+    }
+
+    @Test
+    void sets_the_health_of_every_herd_too() throws Exception {
+        Job jobStarted = Job.builder().build();
+        JobContext ctx = new JobContext(null, jobStarted);
+
+        Farmer farmer = getFarmer();
+        Herd herd1 = Herd.builder().id(1L).farmer(farmer).herdNumber(1).numCows(2).health(80).build();
+        Herd herd2 = Herd.builder().id(2L).farmer(farmer).herdNumber(2).numCows(3).health(40).build();
+
+        when(gameRepository.findById(117L)).thenReturn(Optional.of(testGame));
+        when(farmerRepository.findByGameId(117L)).thenReturn(List.of(farmer));
+        when(herdRepository.findByGameIdAndUserId(117L, 1L)).thenReturn(List.of(herd1, herd2));
+
+        new SetCowHealthJob(117L, 2.0, gameRepository, farmerRepository, userRepository, herdRepository)
+                .accept(ctx);
+
+        assertEquals(2.0, herd1.getHealth());
+        assertEquals(2.0, herd2.getHealth());
+        verify(herdRepository).save(herd1);
+        verify(herdRepository).save(herd2);
+    }
+
+    @Test
+    void does_not_touch_herds_when_no_game_found() throws Exception {
+        JobContext ctx = new JobContext(null, Job.builder().build());
+        when(gameRepository.findById(any())).thenReturn(Optional.empty());
+
+        new SetCowHealthJob(117L, 2.0, gameRepository, farmerRepository, userRepository, herdRepository)
+                .accept(ctx);
+
+        verify(herdRepository, never()).save(any());
     }
 }

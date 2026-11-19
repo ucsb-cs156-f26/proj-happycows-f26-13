@@ -34,6 +34,10 @@ public class Herd {
     @JsonIgnore
     private Farmer farmer;
 
+    // Shown to players as "Herd #1", "Herd #2", ... Numbered separately for
+    // each farmer in each game, starting at 1, and never changes.
+    private int herdNumber;
+
     private int numCows;
 
     private double health;

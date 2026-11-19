@@ -4,8 +4,10 @@ package edu.ucsb.cs156.happiercows.jobs;
 import edu.ucsb.cs156.happiercows.entities.Game;
 import edu.ucsb.cs156.happiercows.entities.User;
 import edu.ucsb.cs156.happiercows.entities.Farmer;
+import edu.ucsb.cs156.happiercows.entities.Herd;
 import edu.ucsb.cs156.happiercows.repositories.GameRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
+import edu.ucsb.cs156.happiercows.repositories.HerdRepository;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 import edu.ucsb.cs156.jobs.services.JobContext;
 import edu.ucsb.cs156.jobs.services.JobContextConsumer;
@@ -26,6 +28,8 @@ public class SetCowHealthJob implements JobContextConsumer {
     private FarmerRepository farmerRepository;
     @Getter
     private UserRepository userRepository;
+    @Getter
+    private HerdRepository herdRepository;
 
     @Override
     public void accept(JobContext ctx) throws Exception {
@@ -48,6 +52,10 @@ public class SetCowHealthJob implements JobContextConsumer {
                 ctx.log(" old cow health: " + farmer.getCowHealth() + ", new cow health: " + newCowHealth);
                 farmer.setCowHealth(newCowHealth);
                 farmerRepository.save(farmer);
+                for (Herd herd : herdRepository.findByGameIdAndUserId(game.get().getId(), farmer.getUserId())) {
+                    herd.setHealth(newCowHealth);
+                    herdRepository.save(herd);
+                }
             }
 
             ctx.log("Cow health has been set!");

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import edu.ucsb.cs156.jobs.entities.Job;
 import edu.ucsb.cs156.happiercows.repositories.GameRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
+import edu.ucsb.cs156.happiercows.repositories.HerdRepository;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 import edu.ucsb.cs156.happiercows.services.GamePlusBuilderService;
 import edu.ucsb.cs156.jobs.services.JobContextConsumer;
@@ -27,9 +28,12 @@ public class UpdateCowHealthJobFactoryInd  {
     @Autowired
     private GamePlusBuilderService gamePlusBuilderService;
 
+    @Autowired
+    private HerdRepository herdRepository;
+
     public JobContextConsumer create(Long gameID) {
         log.info("gameRepository = " + gameRepository);
         log.info("farmerRepository = " + farmerRepository);
-        return new UpdateCowHealthJobInd(gameRepository, farmerRepository, userRepository, gamePlusBuilderService, gameID);
+        return new UpdateCowHealthJobInd(gameRepository, farmerRepository, userRepository, gamePlusBuilderService, herdRepository, Math::random, gameID);
     }
 }

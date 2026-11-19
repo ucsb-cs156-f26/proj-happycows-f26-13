@@ -58,6 +58,11 @@ public class HerdRepositoryTests {
         return herdRepository.save(Herd.builder().farmer(farmer).numCows(numCows).health(health).build());
     }
 
+    private Herd saveNumberedHerd(Farmer farmer, int herdNumber) {
+        return herdRepository.save(
+                Herd.builder().farmer(farmer).herdNumber(herdNumber).numCows(1).health(100.0).build());
+    }
+
     private List<Herd> find(Game game, User user) {
         List<Herd> result = new ArrayList<>();
         herdRepository.findByGameIdAndUserId(game.getId(), user.getId()).forEach(result::add);
@@ -105,5 +110,24 @@ public class HerdRepositoryTests {
 
         assertEquals(0, find(game1, user1).size());
         assertEquals(1, find(game1, user2).size());
+    }
+
+    @Test
+    void max_herd_number_is_0_when_farmer_has_no_herds() {
+        saveNumberedHerd(user2Game1, 4);
+
+        assertEquals(0, herdRepository.findMaxHerdNumber(game1.getId(), user1.getId()));
+    }
+
+    @Test
+    void max_herd_number_only_counts_the_given_farmers_herds_in_the_given_game() {
+        saveNumberedHerd(user1Game1, 1);
+        saveNumberedHerd(user1Game1, 3);
+        saveNumberedHerd(user2Game1, 7);  // same game, other farmer
+        saveNumberedHerd(user1Game2, 9);  // same user, other game
+
+        assertEquals(3, herdRepository.findMaxHerdNumber(game1.getId(), user1.getId()));
+        assertEquals(7, herdRepository.findMaxHerdNumber(game1.getId(), user2.getId()));
+        assertEquals(9, herdRepository.findMaxHerdNumber(game2.getId(), user1.getId()));
     }
 }

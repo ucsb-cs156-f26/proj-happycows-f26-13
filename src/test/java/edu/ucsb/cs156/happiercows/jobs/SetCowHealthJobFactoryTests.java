@@ -12,6 +12,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import edu.ucsb.cs156.happiercows.JobTestCase;
 import edu.ucsb.cs156.happiercows.repositories.GameRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
+import edu.ucsb.cs156.happiercows.repositories.HerdRepository;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 
 @RestClientTest(SetCowHealthJobFactory.class)
@@ -27,6 +28,9 @@ public class SetCowHealthJobFactoryTests extends JobTestCase {
     @MockBean
     UserRepository userRepository;
 
+    @MockBean
+    HerdRepository herdRepository;
+
     @Autowired
     SetCowHealthJobFactory setCowHealthJobFactory;
 
@@ -40,6 +44,7 @@ public class SetCowHealthJobFactoryTests extends JobTestCase {
         assertEquals(gameRepository,setCowHealthJob.getGameRepository());
         assertEquals(farmerRepository,setCowHealthJob.getFarmerRepository());
         assertEquals(userRepository,setCowHealthJob.getUserRepository());
+        assertEquals(herdRepository,setCowHealthJob.getHerdRepository());
 
     }
 }

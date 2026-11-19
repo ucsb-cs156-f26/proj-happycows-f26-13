@@ -66,37 +66,37 @@ class CowHealthUpdateStrategyTests {
     void linear_updates_health_proportional_to_num_cows_over_capacity() {
         var formula = CowHealthUpdateStrategies.Linear;
 
-        assertEquals(49.9, formula.calculateNewCowHealth(gamePlus, uc, 110));
-        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus, uc, 100));
-        assertEquals(50.1, formula.calculateNewCowHealth(gamePlus, uc, 90));
+        assertEquals(49.9, formula.calculateNewCowHealth(gamePlus, uc.getCowHealth(), 110));
+        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus, uc.getCowHealth(), 100));
+        assertEquals(50.1, formula.calculateNewCowHealth(gamePlus, uc.getCowHealth(), 90));
     }
 
     @Test
     void constant_changes_by_constant_amount() {
         var formula = CowHealthUpdateStrategies.Constant;
 
-        assertEquals(49.99, formula.calculateNewCowHealth(gamePlus, uc, 120));
-        assertEquals(49.99, formula.calculateNewCowHealth(gamePlus, uc, 110));
-        assertEquals(50.01, formula.calculateNewCowHealth(gamePlus, uc, 100));
-        assertEquals(50.01, formula.calculateNewCowHealth(gamePlus, uc, 90));
+        assertEquals(49.99, formula.calculateNewCowHealth(gamePlus, uc.getCowHealth(), 120));
+        assertEquals(49.99, formula.calculateNewCowHealth(gamePlus, uc.getCowHealth(), 110));
+        assertEquals(50.01, formula.calculateNewCowHealth(gamePlus, uc.getCowHealth(), 100));
+        assertEquals(50.01, formula.calculateNewCowHealth(gamePlus, uc.getCowHealth(), 90));
     }
 
     @Test
     void noop_does_nothing() {
         var formula = CowHealthUpdateStrategies.Noop;
 
-        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus, uc, 110));
-        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus, uc, 100));
-        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus, uc, 90));
+        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus, uc.getCowHealth(), 110));
+        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus, uc.getCowHealth(), 100));
+        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus, uc.getCowHealth(), 90));
     }
 
     @Test
     void milan_calculates_correctly() {
         var formula = CowHealthUpdateStrategies.Milan;
-        assertEquals(62.5, formula.calculateNewCowHealth(gamePlus1, uc1, 500));
-        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus1, uc1, 1000));
-        assertEquals(37.5, formula.calculateNewCowHealth(gamePlus1, uc1, 1500));
-        assertEquals(0.0, formula.calculateNewCowHealth(gamePlus1, uc1, 2000));
+        assertEquals(62.5, formula.calculateNewCowHealth(gamePlus1, uc1.getCowHealth(), 500));
+        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus1, uc1.getCowHealth(), 1000));
+        assertEquals(37.5, formula.calculateNewCowHealth(gamePlus1, uc1.getCowHealth(), 1500));
+        assertEquals(0.0, formula.calculateNewCowHealth(gamePlus1, uc1.getCowHealth(), 2000));
     }
 
     @Test
@@ -104,21 +104,21 @@ class CowHealthUpdateStrategyTests {
         var formula = CowHealthUpdateStrategies.Mattanjah;
         double tolerance = 1E-12;
 
-        assertEquals(62.5, formula.calculateNewCowHealth(gamePlus1, uc1, 500));
-        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus1, uc1, 1000));
-        assertEquals(0.0, formula.calculateNewCowHealth(gamePlus1, uc1, 2000));
+        assertEquals(62.5, formula.calculateNewCowHealth(gamePlus1, uc1.getCowHealth(), 500));
+        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus1, uc1.getCowHealth(), 1000));
+        assertEquals(0.0, formula.calculateNewCowHealth(gamePlus1, uc1.getCowHealth(), 2000));
 
-        assertEquals(100.0, formula.calculateNewCowHealth(gamePlus2, uc2, 500));
-        assertEquals(62.5, formula.calculateNewCowHealth(gamePlus2, uc2, 750));
-        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus2, uc2, 1000));
-        assertEquals(37.5, formula.calculateNewCowHealth(gamePlus2, uc2, 1250));
-        assertEquals(0.0, formula.calculateNewCowHealth(gamePlus2, uc2, 1500));
+        assertEquals(100.0, formula.calculateNewCowHealth(gamePlus2, uc2.getCowHealth(), 500));
+        assertEquals(62.5, formula.calculateNewCowHealth(gamePlus2, uc2.getCowHealth(), 750));
+        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus2, uc2.getCowHealth(), 1000));
+        assertEquals(37.5, formula.calculateNewCowHealth(gamePlus2, uc2.getCowHealth(), 1250));
+        assertEquals(0.0, formula.calculateNewCowHealth(gamePlus2, uc2.getCowHealth(), 1500));
 
-        assertEquals(60.125, formula.calculateNewCowHealth(gamePlus0_5, uc0_5, 100), tolerance);
-        assertEquals(53.125, formula.calculateNewCowHealth(gamePlus0_5, uc0_5, 500), tolerance);
-        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus0_5, uc0_5, 1000), tolerance);
-        assertEquals(37.5, formula.calculateNewCowHealth(gamePlus0_5, uc0_5, 2000), tolerance);
-        assertEquals(0.0, formula.calculateNewCowHealth(gamePlus0_5, uc0_5, 3000), tolerance);
+        assertEquals(60.125, formula.calculateNewCowHealth(gamePlus0_5, uc0_5.getCowHealth(), 100), tolerance);
+        assertEquals(53.125, formula.calculateNewCowHealth(gamePlus0_5, uc0_5.getCowHealth(), 500), tolerance);
+        assertEquals(50.0, formula.calculateNewCowHealth(gamePlus0_5, uc0_5.getCowHealth(), 1000), tolerance);
+        assertEquals(37.5, formula.calculateNewCowHealth(gamePlus0_5, uc0_5.getCowHealth(), 2000), tolerance);
+        assertEquals(0.0, formula.calculateNewCowHealth(gamePlus0_5, uc0_5.getCowHealth(), 3000), tolerance);
 
     }
 }

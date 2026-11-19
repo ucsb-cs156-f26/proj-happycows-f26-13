@@ -80,13 +80,13 @@ const SellHerdsModal = ({ isOpen, onClose, herds = [], game, onSell }) => {
               <tbody>
                 {herds.map((herd) => (
                   <tr key={herd.id}>
-                    <th scope="row">Herd #{herd.id}</th>
+                    <th scope="row">Herd #{herd.herdNumber}</th>
                     <td>{herd.numCows}</td>
                     <td>{herd.health.toFixed(2)}%</td>
                     <td>
                       <Form.Control
                         data-testid={`sell-herds-modal-input-${herd.id}`}
-                        aria-label={`Cows to sell from Herd #${herd.id}`}
+                        aria-label={`Cows to sell from Herd #${herd.herdNumber}`}
                         type="number"
                         min="0"
                         max={herd.numCows}
