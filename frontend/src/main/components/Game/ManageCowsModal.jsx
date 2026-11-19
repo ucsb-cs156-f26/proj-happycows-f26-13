@@ -29,15 +29,17 @@ const ManageCowsModal = ({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (number < 0) {
-      toast.error(
+      window.alert(
         `You cannot ${message} a negative number of cows! Please enter a non-negative number.`,
       );
     } else if (!Number.isInteger(Number(number))) {
-      toast.error(
+      window.alert(
         `You cannot ${message} a fractional number of cows! Please enter a whole number.`,
       );
     } else if (message.includes("buy") && Number(number) < 1) {
       toast.error("You must buy at least 1 cow.");
+      setNumber(1);
+      onClose();
     } else {
       if (message.includes("buy")) {
         onBuy(farmer, number);
