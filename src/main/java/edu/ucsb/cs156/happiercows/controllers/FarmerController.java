@@ -13,11 +13,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
 import edu.ucsb.cs156.happiercows.repositories.GameRepository;
+import edu.ucsb.cs156.happiercows.repositories.HerdRepository;
 import edu.ucsb.cs156.happiercows.entities.User;
 import edu.ucsb.cs156.happiercows.entities.Farmer;
 import edu.ucsb.cs156.happiercows.entities.FarmerActivity;
 import edu.ucsb.cs156.happiercows.entities.Game;
+import edu.ucsb.cs156.happiercows.entities.Herd;
 import edu.ucsb.cs156.happiercows.errors.EntityNotFoundException;
+import edu.ucsb.cs156.happiercows.errors.InvalidNumberOfCowsException;
 import edu.ucsb.cs156.happiercows.errors.NoCowsException;
 import edu.ucsb.cs156.happiercows.errors.NotEnoughMoneyException;
 import edu.ucsb.cs156.happiercows.errors.GameHiddenException;
@@ -46,6 +49,9 @@ public class FarmerController extends ApiController {
 
   @Autowired
   private GameRepository gameRepository;
+
+  @Autowired
+  private HerdRepository herdRepository;
 
   @Autowired
   ObjectMapper mapper;
@@ -86,12 +92,16 @@ public class FarmerController extends ApiController {
     return farmer;
   }
 
-  @Operation(summary = "Buy a cow, totalWealth updated")
+  @Operation(summary = "Buy a herd of numCows cows (starting at 100 health), totalWealth updated")
   @PreAuthorize("hasRole('ROLE_USER')")
   @PutMapping("/buy")
   public ResponseEntity<String> putFarmerByIdBuy(
           @Parameter(name="gameId") @RequestParam Long gameId,
-          @Parameter(name="numCows") @RequestParam int numCows) throws NotEnoughMoneyException, JsonProcessingException{
+          @Parameter(name="numCows") @RequestParam int numCows) throws NotEnoughMoneyException, InvalidNumberOfCowsException, JsonProcessingException{
+
+        if (numCows < 1) {
+          throw new InvalidNumberOfCowsException("You must buy at least 1 cow!");
+        }
 
         User u = getCurrentUser().getUser();
         Long userId = u.getId();
@@ -119,6 +129,7 @@ public class FarmerController extends ApiController {
           throw new NotEnoughMoneyException("You need more money!");
         }
         farmerRepository.save(farmer);
+        herdRepository.save(Herd.builder().farmer(farmer).numCows(numCows).health(100).build());
 
         farmerActivityService.recordActivityIfStudentMatch(
             u, game, farmer, FarmerActivity.ACTIVITY_TYPE_BUY, numCows);

@@ -6,6 +6,7 @@ import { vi } from "vitest";
 import "@testing-library/jest-dom";
 
 const mockToast = vi.fn();
+const mockToastError = vi.fn();
 const BUY_NEG_WARN = "Warning: You cannot buy a negative number of cows!";
 const SELL_NEG_WARN = "Warning: You cannot sell a negative number of cows!";
 const BUY_FRAC_WARN =
@@ -20,6 +21,7 @@ vi.mock("react-toastify", async () => {
     toast: {
       ...originalModule.toast,
       warn: (message) => mockToast(message),
+      error: (message) => mockToastError(message),
     },
   };
 });
@@ -279,6 +281,112 @@ describe("ManageCowsModal", () => {
         number,
       ),
     );
+  });
+
+  test("buying 0 cows closes the modal and shows an error toast without calling onBuy", async () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        farmer={farmerFixtures.oneFarmer[0]}
+        number={0}
+        onBuy={mockOnBuy}
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("buy-sell-cow-modal-submit"));
+
+    expect(mockToastError).toHaveBeenCalledWith("You must buy at least 1 cow.");
+    expect(window.alert).not.toHaveBeenCalled();
+    expect(mockOnBuy).not.toHaveBeenCalled();
+    expect(mockSetNumber).toHaveBeenCalledWith(1);
+    expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  test("shows total cost including purchase fee when buying", () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        number={3}
+        game={{ cowPrice: 100, purchaseFee: 5 }}
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("buy-sell-cow-modal-total-cost"),
+    ).toHaveTextContent("Total cost: $315.00");
+  });
+
+  test("total cost treats a missing purchase fee as 0", () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        number={2}
+        game={{ cowPrice: 10 }}
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("buy-sell-cow-modal-total-cost"),
+    ).toHaveTextContent("Total cost: $20.00");
+  });
+
+  test("total cost is $0.00 when the input is empty", () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        number=""
+        game={{ cowPrice: 10, purchaseFee: 1 }}
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("buy-sell-cow-modal-total-cost"),
+    ).toHaveTextContent("Total cost: $0.00");
+  });
+
+  test("total cost is not shown when selling", () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="sell"
+        number={2}
+        game={{ cowPrice: 10, purchaseFee: 1 }}
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("buy-sell-cow-modal-total-cost"),
+    ).not.toBeInTheDocument();
+  });
+
+  test("total cost is not shown when game is not loaded", () => {
+    render(
+      <ManageCowsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        message="buy"
+        number={2}
+        setNumber={mockSetNumber}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("buy-sell-cow-modal-total-cost"),
+    ).not.toBeInTheDocument();
   });
 
   test("calls onSell with correct arguments when sell button is clicked", async () => {

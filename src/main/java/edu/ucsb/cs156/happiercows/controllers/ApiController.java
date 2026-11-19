@@ -1,6 +1,7 @@
 package edu.ucsb.cs156.happiercows.controllers;
 
 import edu.ucsb.cs156.happiercows.errors.EntityNotFoundException;
+import edu.ucsb.cs156.happiercows.errors.InvalidNumberOfCowsException;
 import edu.ucsb.cs156.happiercows.errors.NoCowsException;
 import edu.ucsb.cs156.happiercows.errors.NotEnoughMoneyException;
 import edu.ucsb.cs156.happiercows.errors.GameHiddenException;
@@ -37,7 +38,7 @@ public abstract class ApiController {
     );
   }
 
-  @ExceptionHandler({ NoCowsException.class, NotEnoughMoneyException.class, GameHiddenException.class, CourseAccessDeniedException.class})
+  @ExceptionHandler({ NoCowsException.class, NotEnoughMoneyException.class, InvalidNumberOfCowsException.class, GameHiddenException.class, CourseAccessDeniedException.class})
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   public Object handleBadRequest(Throwable e) {
     return Map.of(

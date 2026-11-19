@@ -277,6 +277,7 @@ export default function PlayPage() {
                 number={numCows}
                 setNumber={setNumCows}
                 farmer={farmer}
+                game={gamePlus.game}
                 isOpen={isModalOpen}
                 message={message}
                 onClose={closeModal}
