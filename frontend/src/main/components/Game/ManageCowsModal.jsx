@@ -10,6 +10,7 @@ const ManageCowsModal = ({
   onClose,
   message,
   farmer,
+  game,
   onBuy,
   onSell,
 }) => {
@@ -35,6 +36,8 @@ const ManageCowsModal = ({
       window.alert(
         `You cannot ${message} a fractional number of cows! Please enter a whole number.`,
       );
+    } else if (message.includes("buy") && Number(number) < 1) {
+      window.alert("You must buy at least 1 cow.");
     } else {
       if (message.includes("buy")) {
         onBuy(farmer, number);
@@ -97,6 +100,15 @@ const ManageCowsModal = ({
               min="1"
             />
           </Form.Group>
+          {message.includes("buy") && game && (
+            <Form.Text data-testid={"buy-sell-cow-modal-total-cost"}>
+              Total cost: $
+              {(
+                (Number(number) || 0) *
+                (game.cowPrice + (game.purchaseFee ?? 0))
+              ).toFixed(2)}
+            </Form.Text>
+          )}
         </Form>
       </Modal.Body>
       <Modal.Footer

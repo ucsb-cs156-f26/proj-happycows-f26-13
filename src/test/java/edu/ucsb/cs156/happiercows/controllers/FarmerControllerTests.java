@@ -4,6 +4,8 @@ import edu.ucsb.cs156.happiercows.ControllerTestCase;
 import edu.ucsb.cs156.happiercows.entities.Game;
 import edu.ucsb.cs156.happiercows.entities.User;
 import edu.ucsb.cs156.happiercows.entities.Farmer;
+import edu.ucsb.cs156.happiercows.entities.Herd;
+import edu.ucsb.cs156.happiercows.repositories.HerdRepository;
 import edu.ucsb.cs156.happiercows.repositories.GameRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
@@ -43,6 +45,9 @@ public class FarmerControllerTests extends ControllerTestCase {
 
     @MockBean
     GameRepository gameRepository;
+
+    @MockBean
+    HerdRepository herdRepository;
 
     @MockBean
     CourseAccessService courseAccessService;
@@ -174,11 +179,41 @@ public class FarmerControllerTests extends ControllerTestCase {
         // assert
         verify(farmerRepository, times(1)).findByGameIdAndUserId(eq(1L), eq(1L));
         verify(farmerRepository, times(1)).save(updateFarmer);
+        verify(herdRepository, times(1)).save(
+                Herd.builder().farmer(updateFarmer).numCows(2).health(100).build());
         verify(farmerActivityService, times(1)).recordActivityIfStudentMatch(
                 eq(currentUser), eq(testGame), eq(updateFarmer),
                 eq(FarmerActivity.ACTIVITY_TYPE_BUY), eq(2));
         String responseString = response.getResponse().getContentAsString();
         assertEquals(expectedReturn, responseString);
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void test_BuyCow_zero_cows_rejected() throws Exception {
+        MvcResult response = mockMvc.perform(put("/api/farmer/buy?gameId=1&numCows=0")
+                        .with(csrf()))
+                .andExpect(status().is(400)).andReturn();
+
+        String expectedString = "{\"message\":\"You must buy at least 1 cow!\",\"type\":\"InvalidNumberOfCowsException\"}";
+        Map<String, Object> expectedJson = mapper.readValue(expectedString, Map.class);
+        assertEquals(expectedJson, responseToJson(response));
+        verify(farmerRepository, times(0)).save(any());
+        verify(herdRepository, times(0)).save(any());
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void test_BuyCow_negative_cows_rejected() throws Exception {
+        MvcResult response = mockMvc.perform(put("/api/farmer/buy?gameId=1&numCows=-3")
+                        .with(csrf()))
+                .andExpect(status().is(400)).andReturn();
+
+        String expectedString = "{\"message\":\"You must buy at least 1 cow!\",\"type\":\"InvalidNumberOfCowsException\"}";
+        Map<String, Object> expectedJson = mapper.readValue(expectedString, Map.class);
+        assertEquals(expectedJson, responseToJson(response));
+        verify(farmerRepository, times(0)).save(any());
+        verify(herdRepository, times(0)).save(any());
     }
 
     @WithMockUser(roles = {"USER"})
@@ -573,6 +608,7 @@ public class FarmerControllerTests extends ControllerTestCase {
         Map<String, Object> expectedJson = mapper.readValue(expectedString, Map.class);
         Map<String, Object> jsonResponse = responseToJson(response);
         assertEquals(expectedJson, jsonResponse);
+        verify(herdRepository, times(0)).save(any());
     }
 
     @WithMockUser(roles = {"USER"})
