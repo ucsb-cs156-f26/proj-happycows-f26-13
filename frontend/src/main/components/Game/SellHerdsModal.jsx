@@ -8,12 +8,9 @@ const cowSaleValue = (game, health) =>
   (game.cowPrice * health) / 100 - (game.sellingFee ?? 0);
 
 const SellHerdsModal = ({ isOpen, onClose, herds = [], game, onSell }) => {
-  // Map of herd id -> what the user typed for that herd.
+  // Map of herd id -> number of cows to sell from that herd. A herd with an
+  // empty input has no entry.
   const [counts, setCounts] = useState({});
-
-  if (!isOpen) {
-    return null;
-  }
 
   const handleClose = () => {
     setCounts({});
@@ -22,16 +19,16 @@ const SellHerdsModal = ({ isOpen, onClose, herds = [], game, onSell }) => {
 
   // Keep each entry between 0 and the number of cows in that herd.
   const handleChange = (herd, value) => {
-    let capped = value;
-    if (value !== "" && Number(value) > herd.numCows) {
-      capped = String(herd.numCows);
-    } else if (value !== "" && Number(value) < 0) {
-      capped = "0";
+    const next = { ...counts };
+    if (value === "") {
+      delete next[herd.id];
+    } else {
+      next[herd.id] = Math.min(Math.max(Number(value), 0), herd.numCows);
     }
-    setCounts({ ...counts, [herd.id]: capped });
+    setCounts(next);
   };
 
-  const countFor = (herd) => Number(counts[herd.id]) || 0;
+  const countFor = (herd) => counts[herd.id] ?? 0;
   const totalCows = herds.reduce((sum, herd) => sum + countFor(herd), 0);
   const totalValue = herds.reduce(
     (sum, herd) => sum + countFor(herd) * cowSaleValue(game, herd.health),
@@ -93,6 +90,7 @@ const SellHerdsModal = ({ isOpen, onClose, herds = [], game, onSell }) => {
                         type="number"
                         min="0"
                         max={herd.numCows}
+                        // Stryker disable next-line StringLiteral: a number input shows any non-number text as empty
                         value={counts[herd.id] ?? ""}
                         placeholder="0"
                         onChange={(e) => handleChange(herd, e.target.value)}

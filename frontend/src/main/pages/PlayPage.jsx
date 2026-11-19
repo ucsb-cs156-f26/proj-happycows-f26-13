@@ -22,6 +22,8 @@ export default function PlayPage() {
   const { gameId } = useParams();
   const queryClient = useQueryClient();
   const { data: currentUser } = useCurrentUser();
+  // Both windows also need a buy/sell message before they open, so starting with this true would show nothing either.
+  // Stryker disable next-line BooleanLiteral
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [message, setMessage] = useState();
   const [numCows, setNumCows] = useState(1);
