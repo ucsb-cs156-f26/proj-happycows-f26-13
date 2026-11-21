@@ -1,0 +1,25 @@
+{
+  "databaseChangeLog": [
+    {
+      "changeSet": {
+        "id": "019-migrate-farmer-cows-to-herds",
+        "author": "bt",
+        "preConditions": [
+          { "onFail": "MARK_RAN" },
+          {
+            "tableExists": {
+              "tableName": "herds"
+            }
+          }
+        ],
+        "changes": [
+          {
+            "sql": {
+              "sql": "INSERT INTO herds (user_id, game_id, num_cows, health) SELECT f.user_id, f.game_id, f.num_of_cows, f.cow_health FROM farmer f WHERE f.num_of_cows > 0 AND NOT EXISTS (SELECT 1 FROM herds h WHERE h.user_id = f.user_id AND h.game_id = f.game_id)"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
