@@ -72,6 +72,8 @@ public class ChatMessageControllerTests extends ControllerTestCase {
 
     @MockBean
     BannedWordRepository bannedWordRepository;
+
+    @MockBean
     ProfanityFilterService profanityFilterService;
 
     @Autowired

@@ -52,6 +52,8 @@ public class ChatMessageController extends ApiController{
 
     @Autowired
     private BannedWordRepository bannedWordRepository;
+
+    @Autowired
     private ProfanityFilterService profanityFilterService;
 
     @Autowired
