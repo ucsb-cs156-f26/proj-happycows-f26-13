@@ -9,13 +9,20 @@ import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.Mockito.never;
+
+import edu.ucsb.cs156.happiercows.repositories.BannedWordRepository;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 import edu.ucsb.cs156.happiercows.testconfig.TestConfig;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import edu.ucsb.cs156.happiercows.entities.BannedWord;
 import edu.ucsb.cs156.happiercows.entities.User;
+import org.mockito.ArgumentCaptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -62,6 +69,9 @@ public class ChatMessageControllerTests extends ControllerTestCase {
 
     @MockBean
     UserRepository userRepository;
+
+    @MockBean
+    BannedWordRepository bannedWordRepository;
 
     @MockBean
     ProfanityFilterService profanityFilterService;
@@ -454,6 +464,210 @@ public class ChatMessageControllerTests extends ControllerTestCase {
             .andExpect(status().isOk());
 
         verify(chatMessageRepository, times(1)).save(any(ChatMessage.class));
+    }
+
+    //* */ banned word cooldown tests
+    private void stubBannedWords(String... words) {
+        when(bannedWordRepository.findAll()).thenReturn(
+            Arrays.stream(words).map(w -> BannedWord.builder().word(w).build()).toList());
+    }
+
+    private void stubFarmerInGameWithChat() {
+        Farmer farmer = Farmer.builder().game(Game.builder().showChat(true).build()).build();
+        when(farmerRepository.findByGameIdAndUserId(1L, 1L)).thenReturn(Optional.of(farmer));
+    }
+
+    private Instant postAndCaptureCooldown(String content) throws Exception {
+        Instant before = Instant.now();
+        mockMvc.perform(post("/api/chat/post?gameId={gameId}&content={content}", 1L, content).with(csrf()))
+            .andExpect(status().isOk());
+        Instant after = Instant.now();
+
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(userRepository, times(1)).save(saved.capture());
+        Instant cooldownUntil = saved.getValue().getChatCooldownUntil();
+        assertFalse(cooldownUntil.isBefore(before.plus(ChatMessageController.BANNED_WORD_COOLDOWN)));
+        assertFalse(cooldownUntil.isAfter(after.plus(ChatMessageController.BANNED_WORD_COOLDOWN)));
+        return cooldownUntil;
+    }
+
+    @Test
+    public void bannedWordCooldownIsFiveMinutes() {
+        assertEquals(java.time.Duration.ofMinutes(5), ChatMessageController.BANNED_WORD_COOLDOWN);
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void messageWithBannedWordPutsUserOnCooldownAndIsStillPosted() throws Exception {
+        User u = User.builder().id(1L).build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+        stubFarmerInGameWithChat();
+        stubBannedWords("heck", "darn");
+
+        postAndCaptureCooldown("well DARN it!");
+
+        ArgumentCaptor<ChatMessage> message = ArgumentCaptor.forClass(ChatMessage.class);
+        verify(chatMessageRepository, times(1)).save(message.capture());
+        assertEquals("well DARN it!", message.getValue().getMessage());
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void messageWithBannedWordReturnsBannedWordAndCooldownSeconds() throws Exception {
+        User u = User.builder().id(1L).build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+        stubFarmerInGameWithChat();
+        stubBannedWords("heck", "darn");
+
+        MvcResult response = mockMvc.perform(post("/api/chat/post?gameId={gameId}&content={content}", 1L, "well DARN it!").with(csrf()))
+            .andExpect(status().isOk()).andReturn();
+
+        Map<String, Object> json = responseToJson(response);
+        assertEquals("darn", json.get("bannedWord"));
+        assertEquals(300, json.get("cooldownSeconds"));
+        // The chat message fields are still at the top level of the response
+        assertEquals("well DARN it!", json.get("message"));
+        assertEquals(1, json.get("gameId"));
+        assertEquals(1, json.get("userId"));
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void messageWithoutBannedWordDoesNotReturnCooldownFields() throws Exception {
+        User u = User.builder().id(1L).build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+        stubFarmerInGameWithChat();
+        stubBannedWords("darn");
+
+        MvcResult response = mockMvc.perform(post("/api/chat/post?gameId={gameId}&content={content}", 1L, "hello").with(csrf()))
+            .andExpect(status().isOk()).andReturn();
+
+        Map<String, Object> json = responseToJson(response);
+        assertFalse(json.containsKey("bannedWord"));
+        assertFalse(json.containsKey("cooldownSeconds"));
+        assertEquals("hello", json.get("message"));
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void bannedWordCooldownReplacesExpiredCooldown() throws Exception {
+        User u = User.builder().id(1L).chatCooldownUntil(Instant.now().minusSeconds(10)).build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+        stubFarmerInGameWithChat();
+        stubBannedWords("darn");
+
+        postAndCaptureCooldown("darn");
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void bannedWordFallsBackToCurrentUserWhenNotInRepository() throws Exception {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+        stubFarmerInGameWithChat();
+        stubBannedWords("darn");
+
+        postAndCaptureCooldown("darn");
+    }
+
+    @WithMockUser(roles = {"ADMIN"})
+    @Test
+    public void adminSendingBannedWordIsAlsoPutOnCooldown() throws Exception {
+        User u = User.builder().id(1L).admin(true).build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+        stubBannedWords("darn");
+
+        postAndCaptureCooldown("darn");
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void messageWithoutBannedWordDoesNotSetCooldown() throws Exception {
+        User u = User.builder().id(1L).build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+        stubFarmerInGameWithChat();
+        stubBannedWords("darn");
+
+        // "darned" contains the banned word only as part of a longer word
+        mockMvc.perform(post("/api/chat/post?gameId={gameId}&content={content}", 1L, "a darned good cow").with(csrf()))
+            .andExpect(status().isOk());
+
+        verify(userRepository, never()).save(any(User.class));
+        verify(chatMessageRepository, times(1)).save(any(ChatMessage.class));
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void userOnLongerCooldownSendingBannedWordKeepsExistingCooldown() throws Exception {
+        Instant existing = Instant.now().plusSeconds(3600);
+        User u = User.builder().id(1L).chatCooldownUntil(existing).build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+        stubFarmerInGameWithChat();
+        stubBannedWords("darn");
+
+        mockMvc.perform(post("/api/chat/post?gameId={gameId}&content={content}", 1L, "darn").with(csrf()))
+            .andExpect(status().isForbidden());
+
+        verify(userRepository, never()).save(any(User.class));
+        verify(chatMessageRepository, never()).save(any(ChatMessage.class));
+        assertEquals(existing, u.getChatCooldownUntil());
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void userNotInGameSendingBannedWordIsNotPutOnCooldown() throws Exception {
+        User u = User.builder().id(1L).build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+        when(farmerRepository.findByGameIdAndUserId(1L, 1L)).thenReturn(Optional.empty());
+        stubBannedWords("darn");
+
+        mockMvc.perform(post("/api/chat/post?gameId={gameId}&content={content}", 1L, "darn").with(csrf()))
+            .andExpect(status().isForbidden());
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    //* */ findBannedWord unit tests
+    @Test
+    public void findBannedWordMatchesWholeWordsCaseInsensitively() {
+        ChatMessageController controller = new ChatMessageController();
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "bannedWordRepository", bannedWordRepository);
+        stubBannedWords("darn", "dang it");
+
+        assertEquals(Optional.of("darn"), controller.findBannedWord("darn"));
+        assertEquals(Optional.of("darn"), controller.findBannedWord("Oh, DaRn!"));
+        assertEquals(Optional.of("dang it"), controller.findBannedWord("well dang it."));
+        assertEquals(Optional.empty(), controller.findBannedWord("darned"));
+        assertEquals(Optional.empty(), controller.findBannedWord("undarn"));
+        assertEquals(Optional.empty(), controller.findBannedWord("darn2"));
+        assertEquals(Optional.empty(), controller.findBannedWord("hello"));
+    }
+
+    @Test
+    public void findBannedWordIsEmptyWhenNoBannedWords() {
+        ChatMessageController controller = new ChatMessageController();
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "bannedWordRepository", bannedWordRepository);
+        when(bannedWordRepository.findAll()).thenReturn(List.of());
+
+        assertEquals(Optional.empty(), controller.findBannedWord("darn"));
+    }
+
+    @Test
+    public void findBannedWordTreatsRegexCharactersLiterally() {
+        ChatMessageController controller = new ChatMessageController();
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "bannedWordRepository", bannedWordRepository);
+        stubBannedWords("a.b");
+
+        assertEquals(Optional.of("a.b"), controller.findBannedWord("x a.b y"));
+        assertEquals(Optional.empty(), controller.findBannedWord("x axb y"));
+    }
+
+    @Test
+    public void findBannedWordReturnsTheWordThatMatched() {
+        ChatMessageController controller = new ChatMessageController();
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "bannedWordRepository", bannedWordRepository);
+        stubBannedWords("heck", "darn");
+
+        assertEquals(Optional.of("darn"), controller.findBannedWord("oh darn"));
     }
 
     //* */ hide tests

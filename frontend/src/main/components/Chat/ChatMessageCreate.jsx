@@ -1,6 +1,7 @@
 import React from "react";
 import { Button, Form } from "react-bootstrap";
 import { useForm } from "react-hook-form";
+import { toast } from "react-toastify";
 
 import { useBackendMutation } from "main/utils/useBackend";
 
@@ -15,9 +16,20 @@ const ChatMessageCreate = ({ gameId, submitAction }) => {
     data: newMessage,
   });
 
+  // The backend includes bannedWord and cooldownSeconds only when the message
+  // contained a banned word and the sender was just placed on a chat cooldown.
+  const onSuccess = (response) => {
+    if (response.bannedWord) {
+      toast.warn(
+        `Your chat message included a banned word ("${response.bannedWord}"). ` +
+          `You have been placed on chat cooldown for the next ${response.cooldownSeconds} seconds.`,
+      );
+    }
+  };
+
   const mutation = useBackendMutation(
     objectToAxiosParams,
-    {},
+    { onSuccess },
     // Stryker disable all : hard to set up test for caching
     [`/api/chat/get?page=0&size=${initialMessagePageSize}&gameId=${gameId}`],
     // Stryker restore all
