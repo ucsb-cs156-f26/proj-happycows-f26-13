@@ -21,6 +21,7 @@ import edu.ucsb.cs156.happiercows.repositories.ChatMessageRepository;
 import edu.ucsb.cs156.happiercows.entities.BannedWord;
 import edu.ucsb.cs156.happiercows.entities.User;
 import edu.ucsb.cs156.happiercows.entities.Farmer;
+import edu.ucsb.cs156.happiercows.models.ChatMessagePostResponse;
 import edu.ucsb.cs156.happiercows.repositories.BannedWordRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
@@ -58,20 +59,21 @@ public class ChatMessageController extends ApiController{
     static final Duration BANNED_WORD_COOLDOWN = Duration.ofMinutes(5);
 
     /**
-     * Returns true if the content contains any word from the banned_words table.
+     * Returns the first word from the banned_words table that the content contains,
+     * or empty if it contains none.
      * Matching is case-insensitive and whole-word only, so a banned word that
      * appears inside a longer word (e.g. "darn" in "darned") does not match.
      */
-    boolean containsBannedWord(String content) {
+    Optional<String> findBannedWord(String content) {
         for (BannedWord bannedWord : bannedWordRepository.findAll()) {
             Pattern pattern = Pattern.compile(
                 "(?<![\\p{L}\\p{N}])" + Pattern.quote(bannedWord.getWord()) + "(?![\\p{L}\\p{N}])",
                 Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
             if (pattern.matcher(content).find()) {
-                return true;
+                return Optional.of(bannedWord.getWord());
             }
         }
-        return false;
+        return Optional.empty();
     }
 
     @Operation(summary = "Get all chat messages", description = "Get all chat messages associated with a specific game.")
@@ -167,7 +169,8 @@ public class ChatMessageController extends ApiController{
         // A banned word puts the sender on a chat cooldown; the message is still posted.
         // Any earlier cooldown has already expired (otherwise we returned 403 above),
         // so this can never shorten an existing cooldown.
-        if (containsBannedWord(content)) {
+        Optional<String> bannedWord = findBannedWord(content);
+        if (bannedWord.isPresent()) {
             freshUser.setChatCooldownUntil(Instant.now().plus(BANNED_WORD_COOLDOWN));
             userRepository.save(freshUser);
         }
@@ -185,7 +188,15 @@ public class ChatMessageController extends ApiController{
         // Save the message
         chatMessageRepository.save(chatMessage);
 
-        return ResponseEntity.ok(chatMessage);
+        // Tell the sender which banned word triggered the cooldown and for how long,
+        // so the frontend can show them a notice right away.
+        ChatMessagePostResponse body = ChatMessagePostResponse.builder()
+            .chatMessage(chatMessage)
+            .bannedWord(bannedWord.orElse(null))
+            .cooldownSeconds(bannedWord.isPresent() ? BANNED_WORD_COOLDOWN.toSeconds() : null)
+            .build();
+
+        return ResponseEntity.ok(body);
     }
 
     @Operation(summary = "Delete a chat message", description = "Delete a chat message associated with a specific game")
