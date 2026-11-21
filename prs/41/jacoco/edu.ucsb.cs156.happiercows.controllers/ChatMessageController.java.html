@@ -21,9 +21,11 @@ import edu.ucsb.cs156.happiercows.repositories.ChatMessageRepository;
 import edu.ucsb.cs156.happiercows.entities.BannedWord;
 import edu.ucsb.cs156.happiercows.entities.User;
 import edu.ucsb.cs156.happiercows.entities.Farmer;
+import edu.ucsb.cs156.happiercows.models.ChatMessagePostResponse;
 import edu.ucsb.cs156.happiercows.repositories.BannedWordRepository;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
+import edu.ucsb.cs156.happiercows.services.ProfanityFilterService;
 
 import org.springframework.security.core.Authentication;
 
@@ -36,8 +38,8 @@ import java.util.regex.Pattern;
 @Tag(name = &quot;Chat Message&quot;)
 @RequestMapping(&quot;/api/chat&quot;)
 @RestController
-<span class="fc" id="L39">@Slf4j</span>
-<span class="fc" id="L40">public class ChatMessageController extends ApiController{</span>
+<span class="fc" id="L41">@Slf4j</span>
+<span class="fc" id="L42">public class ChatMessageController extends ApiController{</span>
 
     @Autowired
     private ChatMessageRepository chatMessageRepository;
@@ -52,26 +54,30 @@ import java.util.regex.Pattern;
     private BannedWordRepository bannedWordRepository;
 
     @Autowired
+    private ProfanityFilterService profanityFilterService;
+
+    @Autowired
     ObjectMapper mapper;
 
     // How long a user is blocked from chatting after sending a message that contains a banned word
-<span class="fc" id="L58">    static final Duration BANNED_WORD_COOLDOWN = Duration.ofMinutes(5);</span>
+<span class="fc" id="L63">    static final Duration BANNED_WORD_COOLDOWN = Duration.ofMinutes(5);</span>
 
     /**
-     * Returns true if the content contains any word from the banned_words table.
+     * Returns the first word from the banned_words table that the content contains,
+     * or empty if it contains none.
      * Matching is case-insensitive and whole-word only, so a banned word that
      * appears inside a longer word (e.g. &quot;darn&quot; in &quot;darned&quot;) does not match.
      */
-    boolean containsBannedWord(String content) {
-<span class="fc bfc" id="L66" title="All 2 branches covered.">        for (BannedWord bannedWord : bannedWordRepository.findAll()) {</span>
-<span class="fc" id="L67">            Pattern pattern = Pattern.compile(</span>
-<span class="fc" id="L68">                &quot;(?&lt;![\\p{L}\\p{N}])&quot; + Pattern.quote(bannedWord.getWord()) + &quot;(?![\\p{L}\\p{N}])&quot;,</span>
+    Optional&lt;String&gt; findBannedWord(String content) {
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        for (BannedWord bannedWord : bannedWordRepository.findAll()) {</span>
+<span class="fc" id="L73">            Pattern pattern = Pattern.compile(</span>
+<span class="fc" id="L74">                &quot;(?&lt;![\\p{L}\\p{N}])&quot; + Pattern.quote(bannedWord.getWord()) + &quot;(?![\\p{L}\\p{N}])&quot;,</span>
                 Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
-<span class="fc bfc" id="L70" title="All 2 branches covered.">            if (pattern.matcher(content).find()) {</span>
-<span class="fc" id="L71">                return true;</span>
+<span class="fc bfc" id="L76" title="All 2 branches covered.">            if (pattern.matcher(content).find()) {</span>
+<span class="fc" id="L77">                return Optional.of(bannedWord.getWord());</span>
             }
-<span class="fc" id="L73">        }</span>
-<span class="fc" id="L74">        return false;</span>
+<span class="fc" id="L79">        }</span>
+<span class="fc" id="L80">        return Optional.empty();</span>
     }
 
     @Operation(summary = &quot;Get all chat messages&quot;, description = &quot;Get all chat messages associated with a specific game.&quot;)
@@ -82,26 +88,26 @@ import java.util.regex.Pattern;
                                             @Parameter(name=&quot;size&quot;) @RequestParam int size) {
         
         // Make sure the user is part of the game and showChat is true, or user is an admin
-<span class="fc" id="L85">        Authentication auth = SecurityContextHolder.getContext().getAuthentication();</span>
-<span class="fc bfc" id="L86" title="All 2 branches covered.">        if (!auth.getAuthorities().stream().anyMatch(a -&gt; a.getAuthority().equals(&quot;ROLE_ADMIN&quot;))){</span>
-<span class="fc" id="L87">            log.info(&quot;User is not an admin&quot;);</span>
-<span class="fc" id="L88">            User user = getCurrentUser().getUser();</span>
-<span class="fc" id="L89">            Long userId = user.getId();</span>
-<span class="fc" id="L90">            Optional&lt;Farmer&gt; farmerLookup = farmerRepository.findByGameIdAndUserId(gameId, userId);</span>
+<span class="fc" id="L91">        Authentication auth = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="fc bfc" id="L92" title="All 2 branches covered.">        if (!auth.getAuthorities().stream().anyMatch(a -&gt; a.getAuthority().equals(&quot;ROLE_ADMIN&quot;))){</span>
+<span class="fc" id="L93">            log.info(&quot;User is not an admin&quot;);</span>
+<span class="fc" id="L94">            User user = getCurrentUser().getUser();</span>
+<span class="fc" id="L95">            Long userId = user.getId();</span>
+<span class="fc" id="L96">            Optional&lt;Farmer&gt; farmerLookup = farmerRepository.findByGameIdAndUserId(gameId, userId);</span>
 
-<span class="fc bfc" id="L92" title="All 2 branches covered.">            if (!farmerLookup.isPresent()) {</span>
-<span class="fc" id="L93">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">            if (!farmerLookup.isPresent()) {</span>
+<span class="fc" id="L99">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
             }
 
-<span class="fc" id="L96">            Farmer farmer = farmerLookup.get();</span>
-<span class="fc bfc" id="L97" title="All 2 branches covered.">            if(!farmer.getGame().isShowChat()){</span>
-<span class="fc" id="L98">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
+<span class="fc" id="L102">            Farmer farmer = farmerLookup.get();</span>
+<span class="fc bfc" id="L103" title="All 2 branches covered.">            if(!farmer.getGame().isShowChat()){</span>
+<span class="fc" id="L104">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
             }
         }
 
         // Return the list of non-hidden chat messages
-<span class="fc" id="L103">        Page&lt;ChatMessage&gt; messages = chatMessageRepository.findByGameId(gameId, PageRequest.of(page, size, Sort.by(&quot;timestamp&quot;).descending()));</span>
-<span class="fc" id="L104">        return ResponseEntity.ok(messages);</span>
+<span class="fc" id="L109">        Page&lt;ChatMessage&gt; messages = chatMessageRepository.findByGameId(gameId, PageRequest.of(page, size, Sort.by(&quot;timestamp&quot;).descending()));</span>
+<span class="fc" id="L110">        return ResponseEntity.ok(messages);</span>
     }
 
     @Operation(summary = &quot;Get all chat messages (Admins)&quot;, description = &quot;Get all chat messages associated with a specific game, even the hidden ones. Used only by admins&quot;)
@@ -112,8 +118,8 @@ import java.util.regex.Pattern;
                                                     @Parameter(name=&quot;size&quot;) @RequestParam int size) {
         
         // Return the list of chat messages
-<span class="fc" id="L115">        Page&lt;ChatMessage&gt; messages = chatMessageRepository.findAllByGameId(gameId, PageRequest.of(page, size, Sort.by(&quot;timestamp&quot;).descending()));</span>
-<span class="fc" id="L116">        return ResponseEntity.ok(messages);</span>
+<span class="fc" id="L121">        Page&lt;ChatMessage&gt; messages = chatMessageRepository.findAllByGameId(gameId, PageRequest.of(page, size, Sort.by(&quot;timestamp&quot;).descending()));</span>
+<span class="fc" id="L122">        return ResponseEntity.ok(messages);</span>
     }
 
     
@@ -125,8 +131,8 @@ import java.util.regex.Pattern;
                                                     @Parameter(name=&quot;size&quot;) @RequestParam int size) {
         
         // Return the list of hidden chat messages
-<span class="fc" id="L128">        Page&lt;ChatMessage&gt; messages = chatMessageRepository.findByGameIdAndHidden(gameId, PageRequest.of(page, size, Sort.by(&quot;timestamp&quot;).descending()));</span>
-<span class="fc" id="L129">        return ResponseEntity.ok(messages);</span>
+<span class="fc" id="L134">        Page&lt;ChatMessage&gt; messages = chatMessageRepository.findByGameIdAndHidden(gameId, PageRequest.of(page, size, Sort.by(&quot;timestamp&quot;).descending()));</span>
+<span class="fc" id="L135">        return ResponseEntity.ok(messages);</span>
     }
     
     
@@ -136,56 +142,65 @@ import java.util.regex.Pattern;
     public ResponseEntity&lt;Object&gt; createChatMessage(@Parameter(description = &quot;The id of the common&quot;) @RequestParam Long gameId,
                                                     @Parameter(description = &quot;The message to be sent&quot;) @RequestParam String content) {
         
-<span class="fc" id="L139">        User user = getCurrentUser().getUser();</span>
-<span class="fc" id="L140">        Long userId = user.getId();</span>
+<span class="fc" id="L145">        User user = getCurrentUser().getUser();</span>
+<span class="fc" id="L146">        Long userId = user.getId();</span>
 
         // Read fresh from DB so a cooldown set after login applies immediately
-<span class="fc" id="L143">        User freshUser = userRepository.findById(userId).orElse(user);</span>
-<span class="fc" id="L144">        Instant cooldownUntil = freshUser.getChatCooldownUntil();</span>
-<span class="fc bfc" id="L145" title="All 4 branches covered.">        if (cooldownUntil != null &amp;&amp; cooldownUntil.isAfter(Instant.now())) {</span>
-<span class="fc" id="L146">            long secondsLeft = Duration.between(Instant.now(), cooldownUntil).toSeconds() + 1;</span>
-<span class="fc" id="L147">            return ResponseEntity.status(HttpStatus.FORBIDDEN)</span>
-<span class="fc" id="L148">                .body(genericMessage(&quot;You are on a chat cooldown for %d more seconds&quot;.formatted(secondsLeft)));</span>
+<span class="fc" id="L149">        User freshUser = userRepository.findById(userId).orElse(user);</span>
+<span class="fc" id="L150">        Instant cooldownUntil = freshUser.getChatCooldownUntil();</span>
+<span class="fc bfc" id="L151" title="All 4 branches covered.">        if (cooldownUntil != null &amp;&amp; cooldownUntil.isAfter(Instant.now())) {</span>
+<span class="fc" id="L152">            long secondsLeft = Duration.between(Instant.now(), cooldownUntil).toSeconds() + 1;</span>
+<span class="fc" id="L153">            return ResponseEntity.status(HttpStatus.FORBIDDEN)</span>
+<span class="fc" id="L154">                .body(genericMessage(&quot;You are on a chat cooldown for %d more seconds&quot;.formatted(secondsLeft)));</span>
         }
 
         // Make sure the user is part of the game and showChat is true, or user is an admin
-<span class="fc" id="L152">        Authentication auth = SecurityContextHolder.getContext().getAuthentication();</span>
-<span class="fc bfc" id="L153" title="All 2 branches covered.">        if (!auth.getAuthorities().stream().anyMatch(a -&gt; a.getAuthority().equals(&quot;ROLE_ADMIN&quot;))){</span>
-<span class="fc" id="L154">            log.info(&quot;User is not an admin&quot;);</span>
-<span class="fc" id="L155">            Optional&lt;Farmer&gt; farmerLookup = farmerRepository.findByGameIdAndUserId(gameId, userId);</span>
+<span class="fc" id="L158">        Authentication auth = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="fc bfc" id="L159" title="All 2 branches covered.">        if (!auth.getAuthorities().stream().anyMatch(a -&gt; a.getAuthority().equals(&quot;ROLE_ADMIN&quot;))){</span>
+<span class="fc" id="L160">            log.info(&quot;User is not an admin&quot;);</span>
+<span class="fc" id="L161">            Optional&lt;Farmer&gt; farmerLookup = farmerRepository.findByGameIdAndUserId(gameId, userId);</span>
 
-<span class="fc bfc" id="L157" title="All 2 branches covered.">            if (!farmerLookup.isPresent()) {</span>
-<span class="fc" id="L158">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
+<span class="fc bfc" id="L163" title="All 2 branches covered.">            if (!farmerLookup.isPresent()) {</span>
+<span class="fc" id="L164">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
             }
 
-<span class="fc" id="L161">            Farmer farmer = farmerLookup.get();</span>
-<span class="fc bfc" id="L162" title="All 2 branches covered.">            if(!farmer.getGame().isShowChat()){</span>
-<span class="fc" id="L163">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
+<span class="fc" id="L167">            Farmer farmer = farmerLookup.get();</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">            if(!farmer.getGame().isShowChat()){</span>
+<span class="fc" id="L169">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
             }
         }
 
         // A banned word puts the sender on a chat cooldown; the message is still posted.
         // Any earlier cooldown has already expired (otherwise we returned 403 above),
         // so this can never shorten an existing cooldown.
-<span class="fc bfc" id="L170" title="All 2 branches covered.">        if (containsBannedWord(content)) {</span>
-<span class="fc" id="L171">            freshUser.setChatCooldownUntil(Instant.now().plus(BANNED_WORD_COOLDOWN));</span>
-<span class="fc" id="L172">            userRepository.save(freshUser);</span>
+<span class="fc" id="L176">        Optional&lt;String&gt; bannedWord = findBannedWord(content);</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">        if (bannedWord.isPresent()) {</span>
+<span class="fc" id="L178">            freshUser.setChatCooldownUntil(Instant.now().plus(BANNED_WORD_COOLDOWN));</span>
+<span class="fc" id="L179">            userRepository.save(freshUser);</span>
         }
 
         // Create the chat message
-<span class="fc" id="L176">        ChatMessage chatMessage = ChatMessage.builder()</span>
-<span class="fc" id="L177">        .gameId(gameId)</span>
-<span class="fc" id="L178">        .userId(userId)</span>
-<span class="fc" id="L179">        .message(content)</span>
-<span class="fc" id="L180">        .hidden(false)</span>
-<span class="fc" id="L181">        .dm(false)</span>
-<span class="fc" id="L182">        .toUserId(0)</span>
-<span class="fc" id="L183">        .build();</span>
+<span class="fc" id="L183">        ChatMessage chatMessage = ChatMessage.builder()</span>
+<span class="fc" id="L184">        .gameId(gameId)</span>
+<span class="fc" id="L185">        .userId(userId)</span>
+<span class="fc" id="L186">        .message(profanityFilterService.censor(content))</span>
+<span class="fc" id="L187">        .hidden(false)</span>
+<span class="fc" id="L188">        .dm(false)</span>
+<span class="fc" id="L189">        .toUserId(0)</span>
+<span class="fc" id="L190">        .build();</span>
 
         // Save the message
-<span class="fc" id="L186">        chatMessageRepository.save(chatMessage);</span>
+<span class="fc" id="L193">        chatMessageRepository.save(chatMessage);</span>
 
-<span class="fc" id="L188">        return ResponseEntity.ok(chatMessage);</span>
+        // Tell the sender which banned word triggered the cooldown and for how long,
+        // so the frontend can show them a notice right away.
+<span class="fc" id="L197">        ChatMessagePostResponse body = ChatMessagePostResponse.builder()</span>
+<span class="fc" id="L198">            .chatMessage(chatMessage)</span>
+<span class="fc" id="L199">            .bannedWord(bannedWord.orElse(null))</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">            .cooldownSeconds(bannedWord.isPresent() ? BANNED_WORD_COOLDOWN.toSeconds() : null)</span>
+<span class="fc" id="L201">            .build();</span>
+
+<span class="fc" id="L203">        return ResponseEntity.ok(body);</span>
     }
 
     @Operation(summary = &quot;Delete a chat message&quot;, description = &quot;Delete a chat message associated with a specific game&quot;)
@@ -194,40 +209,40 @@ import java.util.regex.Pattern;
     public ResponseEntity&lt;Object&gt; hideChatMessage(@Parameter(description = &quot;The id of the chat message&quot;) @RequestParam Long chatMessageId) {
 
         // Try to get the chat message
-<span class="fc" id="L197">        Optional&lt;ChatMessage&gt; chatMessageLookup = chatMessageRepository.findById(chatMessageId);</span>
-<span class="fc bfc" id="L198" title="All 2 branches covered.">        if (!chatMessageLookup.isPresent()) {</span>
-<span class="fc" id="L199">            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();</span>
+<span class="fc" id="L212">        Optional&lt;ChatMessage&gt; chatMessageLookup = chatMessageRepository.findById(chatMessageId);</span>
+<span class="fc bfc" id="L213" title="All 2 branches covered.">        if (!chatMessageLookup.isPresent()) {</span>
+<span class="fc" id="L214">            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();</span>
         }
-<span class="fc" id="L201">        ChatMessage chatMessage = chatMessageLookup.get();</span>
+<span class="fc" id="L216">        ChatMessage chatMessage = chatMessageLookup.get();</span>
 
-<span class="fc" id="L203">        User user = getCurrentUser().getUser();</span>
-<span class="fc" id="L204">        Long userId = user.getId();</span>
+<span class="fc" id="L218">        User user = getCurrentUser().getUser();</span>
+<span class="fc" id="L219">        Long userId = user.getId();</span>
 
         // Check if the user is the author of the message
-<span class="fc bfc" id="L207" title="All 2 branches covered.">        if (chatMessage.getUserId() != userId) {</span>
+<span class="fc bfc" id="L222" title="All 2 branches covered.">        if (chatMessage.getUserId() != userId) {</span>
             // Check if the user is an admin
-<span class="fc" id="L209">            Authentication auth = SecurityContextHolder.getContext().getAuthentication();</span>
-<span class="fc bfc" id="L210" title="All 2 branches covered.">            if (!auth.getAuthorities().stream().anyMatch(a -&gt; a.getAuthority().equals(&quot;ROLE_ADMIN&quot;))){</span>
-<span class="fc" id="L211">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
+<span class="fc" id="L224">            Authentication auth = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">            if (!auth.getAuthorities().stream().anyMatch(a -&gt; a.getAuthority().equals(&quot;ROLE_ADMIN&quot;))){</span>
+<span class="fc" id="L226">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
             }
         }
 
         // Check if showChat is true
-<span class="fc" id="L216">        Optional&lt;Farmer&gt; farmerLookup = farmerRepository.findByGameIdAndUserId(chatMessage.getGameId(), userId);</span>
-<span class="fc" id="L217">        Farmer farmer = farmerLookup.get();</span>
-<span class="fc bfc" id="L218" title="All 2 branches covered.">        if (!farmer.getGame().isShowChat()){</span>
+<span class="fc" id="L231">        Optional&lt;Farmer&gt; farmerLookup = farmerRepository.findByGameIdAndUserId(chatMessage.getGameId(), userId);</span>
+<span class="fc" id="L232">        Farmer farmer = farmerLookup.get();</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        if (!farmer.getGame().isShowChat()){</span>
             // Check if the user is an admin
-<span class="fc" id="L220">            Authentication auth = SecurityContextHolder.getContext().getAuthentication();</span>
-<span class="fc bfc" id="L221" title="All 2 branches covered.">            if (!auth.getAuthorities().stream().anyMatch(a -&gt; a.getAuthority().equals(&quot;ROLE_ADMIN&quot;))){</span>
-<span class="fc" id="L222">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
+<span class="fc" id="L235">            Authentication auth = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="fc bfc" id="L236" title="All 2 branches covered.">            if (!auth.getAuthorities().stream().anyMatch(a -&gt; a.getAuthority().equals(&quot;ROLE_ADMIN&quot;))){</span>
+<span class="fc" id="L237">                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();</span>
             }
         }
 
         // Hide the message
-<span class="fc" id="L227">        chatMessage.setHidden(true);</span>
-<span class="fc" id="L228">        chatMessageRepository.save(chatMessage);</span>
+<span class="fc" id="L242">        chatMessage.setHidden(true);</span>
+<span class="fc" id="L243">        chatMessageRepository.save(chatMessage);</span>
 
-<span class="fc" id="L230">        return ResponseEntity.ok(chatMessage);</span>
+<span class="fc" id="L245">        return ResponseEntity.ok(chatMessage);</span>
     }
 
     
