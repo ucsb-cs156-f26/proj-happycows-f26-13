@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProfanityFilterService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">happycows</a> &gt; <a href="index.source.html" class="el_package">edu.ucsb.cs156.happiercows.services</a> &gt; <span class="el_source">ProfanityFilterService.java</span></div><h1>ProfanityFilterService.java</h1><pre class="source lang-java linenums">package edu.ucsb.cs156.happiercows.services;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import edu.ucsb.cs156.happiercows.entities.BannedWord;
+import edu.ucsb.cs156.happiercows.repositories.BannedWordRepository;
+
+@Service(&quot;ProfanityFilterService&quot;)
+<span class="fc" id="L16">public class ProfanityFilterService {</span>
+
+    @Autowired
+    BannedWordRepository bannedWordRepository;
+
+    public String censor(String message) {
+<span class="fc bfc" id="L22" title="All 4 branches covered.">        if (message == null || message.isEmpty()) {</span>
+<span class="fc" id="L23">            return message;</span>
+        }
+
+<span class="fc" id="L26">        List&lt;String&gt; bannedWords = loadBannedWords();</span>
+<span class="fc bfc" id="L27" title="All 2 branches covered.">        if (bannedWords.isEmpty()) {</span>
+<span class="fc" id="L28">            return message;</span>
+        }
+
+<span class="fc" id="L31">        String censored = message;</span>
+<span class="fc bfc" id="L32" title="All 2 branches covered.">        for (String bannedWord : bannedWords) {</span>
+<span class="fc" id="L33">            censored = mask(censored, bannedWord);</span>
+<span class="fc" id="L34">        }</span>
+
+<span class="fc" id="L36">        return censored;</span>
+    }
+
+    // Banned words are stored lowercase (see BannedWord) and matching is case
+    // insensitive. Longer entries are applied first so that a banned phrase
+    // such as &quot;darn it&quot; is masked before a shorter banned word inside it.
+    private List&lt;String&gt; loadBannedWords() {
+<span class="fc" id="L43">        List&lt;String&gt; bannedWords = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L44" title="All 2 branches covered.">        for (BannedWord bannedWord : bannedWordRepository.findAll()) {</span>
+<span class="fc" id="L45">            bannedWords.add(bannedWord.getWord());</span>
+<span class="fc" id="L46">        }</span>
+<span class="fc" id="L47">        bannedWords.sort(Comparator.comparingInt(String::length).reversed());</span>
+<span class="fc" id="L48">        return bannedWords;</span>
+    }
+
+    // Only the characters belonging to a banned word are replaced with '*'.
+    // Surrounding words and punctuation are untouched, and any whitespace
+    // inside a banned phrase keeps its original position.
+    private String mask(String message, String bannedWord) {
+<span class="fc" id="L55">        Pattern pattern = Pattern.compile(</span>
+<span class="fc" id="L56">                &quot;(?&lt;!\\w)&quot; + Pattern.quote(bannedWord) + &quot;(?!\\w)&quot;,</span>
+                Pattern.CASE_INSENSITIVE);
+
+<span class="fc" id="L59">        Matcher matcher = pattern.matcher(message);</span>
+<span class="fc" id="L60">        StringBuilder censored = new StringBuilder(message);</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        while (matcher.find()) {</span>
+<span class="fc bfc" id="L62" title="All 2 branches covered.">            for (int i = matcher.start(); i &lt; matcher.end(); i++) {</span>
+<span class="fc" id="L63">                char c = message.charAt(i);</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">                censored.setCharAt(i, Character.isWhitespace(c) ? c : '*');</span>
+            }
+        }
+
+<span class="fc" id="L68">        return censored.toString();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>
