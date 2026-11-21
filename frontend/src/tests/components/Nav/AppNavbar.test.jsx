@@ -45,6 +45,10 @@ describe("AppNavbar tests", () => {
     expect(adminMenu).toBeInTheDocument();
     fireEvent.click(screen.getByText("Admin"));
     expect(await screen.findByText("List Games")).toBeInTheDocument();
+    expect(screen.getByText("Banned Words")).toHaveAttribute(
+      "href",
+      "/admin/bannedwords",
+    );
     expect(screen.queryByText("List Games V2")).not.toBeInTheDocument();
   });
 
