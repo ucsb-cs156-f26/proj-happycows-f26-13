@@ -22,6 +22,7 @@ import edu.ucsb.cs156.happiercows.entities.User;
 import edu.ucsb.cs156.happiercows.entities.Farmer;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
+import edu.ucsb.cs156.happiercows.services.ProfanityFilterService;
 
 import org.springframework.security.core.Authentication;
 
@@ -44,6 +45,9 @@ public class ChatMessageController extends ApiController{
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ProfanityFilterService profanityFilterService;
 
     @Autowired
     ObjectMapper mapper;
@@ -137,11 +141,11 @@ public class ChatMessageController extends ApiController{
             }
         }
 
-        // Create the chat message
+        // Create the chat message, censoring any banned words before it is stored
         ChatMessage chatMessage = ChatMessage.builder()
         .gameId(gameId)
         .userId(userId)
-        .message(content)
+        .message(profanityFilterService.censor(content))
         .hidden(false)
         .dm(false)
         .toUserId(0)
