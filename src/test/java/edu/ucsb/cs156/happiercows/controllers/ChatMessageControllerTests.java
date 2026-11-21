@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 
 import edu.ucsb.cs156.happiercows.repositories.UserRepository;
 import edu.ucsb.cs156.happiercows.testconfig.TestConfig;
@@ -18,7 +19,9 @@ import edu.ucsb.cs156.happiercows.entities.User;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -43,6 +46,7 @@ import edu.ucsb.cs156.happiercows.entities.ChatMessage;
 import edu.ucsb.cs156.happiercows.repositories.FarmerRepository;
 import edu.ucsb.cs156.happiercows.entities.Farmer;
 import edu.ucsb.cs156.happiercows.entities.Game;
+import edu.ucsb.cs156.happiercows.services.ProfanityFilterService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -59,8 +63,19 @@ public class ChatMessageControllerTests extends ControllerTestCase {
     @MockBean
     UserRepository userRepository;
 
+    @MockBean
+    ProfanityFilterService profanityFilterService;
+
     @Autowired
     ObjectMapper mapper;
+
+    // Existing tests use content with no banned words, so the filter is a
+    // pass-through unless a test stubs it explicitly.
+    @BeforeEach
+    public void setUp() {
+        when(profanityFilterService.censor(anyString()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+    }
 
 
     //* */ get tests
@@ -339,6 +354,63 @@ public class ChatMessageControllerTests extends ControllerTestCase {
         String expectedResponseString = mapper.writeValueAsString(chatMessage);
         log.info("Got back from API: {}",responseString);
         assertEquals(expectedResponseString, responseString);
+    }
+
+    //* */ censoring tests
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void postedChatMessageContentIsSentThroughProfanityFilter() throws Exception {
+
+        // arrange
+        Long gameId = 1L;
+        Long userId = 1L;
+        String content = "Hello world!";
+
+        when(chatMessageRepository.save(any(ChatMessage.class))).thenReturn(ChatMessage.builder().build());
+
+        Farmer farmer = Farmer.builder()
+                .game(Game.builder().showChat(true).build())
+                .build();
+        when(farmerRepository.findByGameIdAndUserId(gameId, userId)).thenReturn(Optional.of(farmer));
+
+        // act
+        mockMvc.perform(post("/api/chat/post?gameId={gameId}&content={content}", gameId, content).with(csrf()))
+            .andExpect(status().isOk()).andReturn();
+
+        // assert
+        verify(profanityFilterService, times(1)).censor(content);
+    }
+
+    @WithMockUser(roles = {"USER"})
+    @Test
+    public void postedChatMessageIsSavedWithCensoredContent() throws Exception {
+
+        // arrange
+        Long gameId = 1L;
+        Long userId = 1L;
+        String content = "What the heck";
+        String censoredContent = "What the ****";
+
+        when(profanityFilterService.censor(content)).thenReturn(censoredContent);
+        when(chatMessageRepository.save(any(ChatMessage.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Farmer farmer = Farmer.builder()
+                .game(Game.builder().showChat(true).build())
+                .build();
+        when(farmerRepository.findByGameIdAndUserId(gameId, userId)).thenReturn(Optional.of(farmer));
+
+        // act
+        MvcResult response = mockMvc.perform(post("/api/chat/post?gameId={gameId}&content={content}", gameId, content).with(csrf()))
+            .andExpect(status().isOk()).andReturn();
+
+        // assert
+        ArgumentCaptor<ChatMessage> captor = ArgumentCaptor.forClass(ChatMessage.class);
+        verify(chatMessageRepository, times(1)).save(captor.capture());
+        assertEquals(censoredContent, captor.getValue().getMessage());
+
+        Map<String, Object> json = responseToJson(response);
+        assertEquals(censoredContent, json.get("message"));
     }
 
     //* */ cooldown tests
