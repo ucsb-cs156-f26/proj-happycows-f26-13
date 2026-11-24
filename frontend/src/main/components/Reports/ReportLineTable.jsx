@@ -1,7 +1,7 @@
 import OurTable from "main/components/OurTable";
 import PageSizeSelector from "main/components/Utils/PageSizeSelector";
 import usePageSize from "main/utils/usePageSize";
-import { formatter } from "./ReportFormatterUtil";
+import { formatCurrency } from "./ReportFormatterUtil";
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500];
 const DEFAULT_PAGE_SIZE = 20;
@@ -30,7 +30,7 @@ export default function ReportLineTable({ reportLines }) {
       Cell: (props) => {
         return (
           <div style={{ textAlign: "right" }}>
-            {formatter.format(props.value)}
+            {formatCurrency(props.value)}
           </div>
         );
       },
