@@ -21,8 +21,6 @@ const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_STORAGE_KEY = "participation-grade-page-size";
 
 const DEFAULT_VALUES = {
-  startDate: "",
-  endDate: "",
   criterion1Weight: 40,
   criterion2Weight: 40,
   criterion2MinDays: 5,

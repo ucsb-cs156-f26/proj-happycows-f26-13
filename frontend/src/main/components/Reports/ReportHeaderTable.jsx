@@ -1,6 +1,6 @@
 import OurTable from "main/components/OurTable";
 
-import { formatter } from "./ReportFormatterUtil";
+import { formatCurrency } from "./ReportFormatterUtil";
 
 // should take in a players list from a game
 export default function ReportHeaderTable({ report }) {
@@ -25,7 +25,7 @@ export default function ReportHeaderTable({ report }) {
       Cell: (props) => {
         return (
           <div style={{ textAlign: "right" }}>
-            {formatter.format(props.value)}
+            {formatCurrency(props.value)}
           </div>
         );
       },
