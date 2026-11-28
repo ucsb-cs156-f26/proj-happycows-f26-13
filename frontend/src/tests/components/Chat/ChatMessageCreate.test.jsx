@@ -7,6 +7,19 @@ import AxiosMockAdapter from "axios-mock-adapter";
 import axios from "axios";
 import { vi } from "vitest";
 
+const mockToastWarn = vi.fn();
+vi.mock("react-toastify", async (importOriginal) => {
+  const originalModule = await importOriginal();
+  return {
+    __esModule: true,
+    ...originalModule,
+    toast: {
+      ...originalModule.toast,
+      warn: (message) => mockToastWarn(message),
+    },
+  };
+});
+
 describe("ChatMessageCreate", () => {
   const gameId = 1;
 
@@ -14,6 +27,7 @@ describe("ChatMessageCreate", () => {
   const queryClient = new QueryClient();
 
   beforeEach(() => {
+    mockToastWarn.mockClear();
     axiosMock.reset();
     axiosMock.resetHistory();
     axiosMock
@@ -131,5 +145,31 @@ describe("ChatMessageCreate", () => {
     );
 
     await waitFor(() => expect(messageInput.value).toEqual(""));
+    expect(mockToastWarn).not.toHaveBeenCalled();
+  });
+
+  test("shows a cooldown toast when the message contained a banned word", async () => {
+    axiosMock.onPost("/api/chat/post?gameId=1&content=oh%20darn").reply(200, {
+      ...chatMessageFixtures.oneChatMessage[0],
+      message: "oh darn",
+      bannedWord: "darn",
+      cooldownSeconds: 300,
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChatMessageCreate gameId={gameId} />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.change(screen.getByTestId("ChatMessageCreate-Message"), {
+      target: { value: "oh darn" },
+    });
+    fireEvent.click(screen.getByTestId("ChatMessageCreate-Send"));
+
+    await waitFor(() => expect(mockToastWarn).toHaveBeenCalledTimes(1));
+    expect(mockToastWarn).toHaveBeenCalledWith(
+      'Your chat message included a banned word ("darn"). You have been placed on chat cooldown for the next 300 seconds.',
+    );
   });
 });
